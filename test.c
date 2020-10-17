@@ -5,25 +5,26 @@
 #include "graphics.h"
 
 void Test_Run() {
+    // Test block.
     FBlock* Block = Block_Create();
     if (Block == NULL) {
         printf("Block is nullptr");
     } else {
         const U32 Id = Block_GetId(Block);
-        printf("0x%x\n", Id);
         const FByteVector Position = Block_IdToPosition(Id);
-        printf("0x%x:0x%x:0x%x\n", Position.X, Position.Y, Position.Z);
+        printf("Block OK: 0x%x 0x%x:0x%x:0x%x\n", Id, Position.X, Position.Y, Position.Z);
     }
 
-    RenderService* RenderService = RenderService_Get();
+    // Test file read.
+    U64 FileLength;
+    File_Read("./assets/vs.glsl", &FileLength);
+    printf("%llu\n", FileLength);
+
+    // Test render service.
+    FRenderService* RenderService = RenderService_Get();
     if (RenderService == NULL) {
         printf("Render service is nullptr\n");
     } else {
-        printf("0x%p\n", RenderService);
+        printf("Render Service OK: 0x%p\n", RenderService);
     }
-
-    RenderService_Initialize();
-
-    const pStr FileContents = File_Read("./text.txt", NULL);
-    printf("%s", FileContents);
 }

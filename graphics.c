@@ -1,33 +1,61 @@
-﻿#include "graphics.h"
+﻿#include "typedefs.h"
+#include "graphics.h"
+#include "file.h"
 
 #include <string.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <windows.h>
+#include <GL/glew.h>
 #include <GL/GL.h>
+#include <SDL_log.h>
 
-#include "file.h"
 
-static RenderService* RenderServiceInstance = NULL;
-
-static const pStr DefaultVertexShaderPath = "assets/vs.glvs";
-static const pStr DefaultFragmentShaderPath = "assets/fs.glfs";
+#pragma region Defaults
+static const pStr DefaultVertexShaderPath = "assets/vs.glsl";
+static const pStr DefaultFragmentShaderPath = "assets/fs.glsl";
 static const pStr DefaultTexturePath = "assets/texture.dds";
+#pragma endregion
 
-RenderService* RenderService_Get() {
+/** The render service instance. */
+static FRenderService* RenderServiceInstance = NULL;
+
+#pragma region Private Function Declarations
+/** Loads and compiles shaders. */
+static U32 RenderService_LoadShaders(FRenderService* pRenderService, pStr VertexShaderPath, pStr FragmentShaderPath);
+
+/** Loads DDS texture. */
+static U32 RenderService_LoadTexture(FRenderService* pRenderService, pStr TexturePath);
+
+/** Clears memory. */
+static void RenderService_Cleanup(FRenderService* pRenderService);
+#pragma endregion
+
+#pragma region Public Function Definitions
+FRenderService* RenderService_Get() {
     if (RenderServiceInstance != NULL) {
         return RenderServiceInstance;
     }
 
     RenderServiceInstance = calloc(1, sizeof *RenderServiceInstance);
+    if (RenderServiceInstance == NULL) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to allocate memory for the render service");
+        return NULL;
+    }
+
+    RenderService_Initialize(RenderServiceInstance);
+
     return RenderServiceInstance;
 }
 
-void RenderService_Initialize() {
-    RenderService* pRenderService = RenderService_Get();
-
+void RenderService_Initialize(FRenderService* pRenderService) {
     if (pRenderService == NULL) {
-        printf("pRenderService was nullptr");
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "pRenderService was nullptr");
+        return;
+    }
+
+    /** Initialize GLEW. */
+    glewExperimental = GL_TRUE;
+    if (glewInit() != GLEW_OK) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to initialize GLEW");
         return;
     }
 
@@ -53,7 +81,7 @@ void RenderService_Initialize() {
     glEnable(GL_CULL_FACE);
 
     pRenderService->ProgramId = RenderService_LoadShaders(pRenderService, DefaultVertexShaderPath, DefaultFragmentShaderPath);
-    pRenderService->Texture = RenderService_LoadDDS(pRenderService, DefaultTexturePath);
+    pRenderService->Texture = RenderService_LoadTexture(pRenderService, DefaultTexturePath);
     pRenderService->TextureId = glGetUniformLocation(pRenderService->ProgramId, "texture");
     pRenderService->TransformMatrixId = glGetUniformLocation(pRenderService->ProgramId, "transformMatrix");
     pRenderService->ModelMatrixId = glGetUniformLocation(pRenderService->ProgramId, "modelMatrix");
@@ -67,22 +95,16 @@ void RenderService_Initialize() {
     pRenderService->CameraId = glGetUniformLocation(pRenderService->ProgramId, "cameraPosition");
 }
 
-void RenderService_Cleanup(RenderService* pRenderService) {
-    // todo clean chunks
-    glDeleteVertexArrays(1, &pRenderService->DefaultVertexArrayId);
-    glBindVertexArray(0);
-    glDeleteProgram(pRenderService->ProgramId);
-    glDeleteTextures(1, &pRenderService->TextureId);
-}
-
 void RenderService_Shutdown() {
     if (RenderServiceInstance != NULL) {
+        RenderService_Cleanup(RenderServiceInstance);
         free(RenderServiceInstance);
     }
+
     RenderServiceInstance = NULL;
 }
 
-void RenderService_Update(RenderService* pRenderService, F32 DeltaTime) {
+void RenderService_Tick(FRenderService* pRenderService, F32 DeltaTime) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     /** Use the shader program. */
@@ -103,8 +125,10 @@ void RenderService_Update(RenderService* pRenderService, F32 DeltaTime) {
         printf("GL error %#X\n", Error);
     }
 }
+#pragma endregion
 
-GLuint RenderService_LoadShaders(RenderService* pRenderService, const pStr VertexShaderPath, const pStr FragmentShaderPath) {
+#pragma region Private Function Definitions
+U32 RenderService_LoadShaders(FRenderService* pRenderService, const pStr VertexShaderPath, const pStr FragmentShaderPath) {
     if (pRenderService == NULL) {
         printf("pRenderService was nullptr");
         return 0;
@@ -133,7 +157,7 @@ GLuint RenderService_LoadShaders(RenderService* pRenderService, const pStr Verte
         if (VertexShaderLogLength > 0) {
             const pStr VertexShaderLog = malloc(VertexShaderLogLength);
             if (VertexShaderLog == NULL) {
-                perror("Unable to allocate memory for vertex shader log");
+                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to allocate memory for vertex shader log");
             }
 
             glGetShaderInfoLog(VertexShaderId, VertexShaderLogLength, &VertexShaderLogLength, VertexShaderLog);
@@ -163,7 +187,7 @@ GLuint RenderService_LoadShaders(RenderService* pRenderService, const pStr Verte
         if (FragmentShaderLogLength > 0) {
             const pStr VertexShaderLog = malloc(FragmentShaderLogLength);
             if (VertexShaderLog == NULL) {
-                perror("Unable to allocate memory for vertex shader log");
+                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to allocate memory for vertex shader log");
             }
 
             glGetShaderInfoLog(VertexShaderId, FragmentShaderLogLength, &FragmentShaderLogLength, VertexShaderLog);
@@ -173,7 +197,7 @@ GLuint RenderService_LoadShaders(RenderService* pRenderService, const pStr Verte
     return 0;
 }
 
-GLuint RenderService_LoadDDS(RenderService* pRenderService, pcStr TexturePath) {
+U32 RenderService_LoadTexture(FRenderService* pRenderService, const pStr TexturePath) {
     if (pRenderService == NULL) {
         printf("pRenderService was nullptr");
         return 0;
@@ -255,3 +279,12 @@ GLuint RenderService_LoadDDS(RenderService* pRenderService, pcStr TexturePath) {
 
     return TextureId;
 }
+
+void RenderService_Cleanup(FRenderService* pRenderService) {
+    // todo clean chunks
+    glDeleteVertexArrays(1, &pRenderService->DefaultVertexArrayId);
+    glBindVertexArray(0);
+    glDeleteProgram(pRenderService->ProgramId);
+    glDeleteTextures(1, &pRenderService->TextureId);
+}
+#pragma endregion

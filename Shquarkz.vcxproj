@@ -180,6 +180,10 @@
   <ItemGroup>
     <ClInclude Include="test.h" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="assets\fs.glsl" />
+    <Content Include="assets\vs.glsl" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

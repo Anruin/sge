@@ -5,16 +5,24 @@ extern "C" {
 #include <stdio.h>
 #include <GL/glew.h>
 #include "application.h"
+
+#include "graphics.h"
 #include "test.h"
 
 #define EVENT_RUN_GAME_LOOP 1
 
+#pragma region Defaults
 static const char* DefaultWindowTitle = "Shquarkz by Jod and Anry";
 const int DefaultWindowWidth = 1140;
 const int DefaultWindowHeight = 855;
+#pragma endregion
 
+/** The application instance. */
+static FApplication* ApplicationInstance = NULL;
+
+#pragma region Private Function Definitions
 /** Handles SDL initialization at the application startup. Creates an SDL window. */
-static int Application_InitializeSDL(FApplication* pApplication, uint32_t WindowWidth, uint32_t WindowHeight, uint32_t WindowFlags);
+static I32 Application_InitializeSDL(FApplication* pApplication, uint32_t WindowWidth, uint32_t WindowHeight, uint32_t WindowFlags);
 
 /** Advances game step by pushing a frame event to SDL. */
 static void Application_AdvanceGameStep(FApplication* pApplication);
@@ -24,35 +32,52 @@ static void Application_Tick(FApplication* pApplication);
 
 /** Handles SDL events. */
 static void Application_HandleSDLEvent(FApplication* pApplication, SDL_Event Event);
+#pragma endregion
+
+#pragma region Public Function Definitions
+FApplication* Application_Get() {
+    if (ApplicationInstance != NULL) {
+        return ApplicationInstance;
+    }
+
+    ApplicationInstance = calloc(1, sizeof *ApplicationInstance);
+    if (ApplicationInstance == NULL) {
+        perror("Failed to allocate memory for the application instance");
+        return NULL;
+    }
+
+    Application_Initialize(ApplicationInstance);
+
+    return ApplicationInstance;
+}
 
 void Application_Initialize(FApplication* pApplication) {
-    if (pApplication == 0) {
-        printf("pApplication is nullptr");
+    if (pApplication == NULL) {
+        perror("pApplication is nullptr");
         return;
     }
 
-    const uint32_t ContextFlags = SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL;
+    const U32 ContextFlags = SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL;
 
-    Application_InitializeSDL(pApplication, DefaultWindowWidth, DefaultWindowHeight, ContextFlags);
-
-    // GLEW
-    glewExperimental = GL_TRUE;
-    if (glewInit() != GLEW_OK) {
-        printf("Failed to initialize GLEW\n");
+    const I32 InitSDLResult = Application_InitializeSDL(pApplication, DefaultWindowWidth, DefaultWindowHeight, ContextFlags);
+    if (InitSDLResult != 0) {
+        SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
         return;
     }
 
     pApplication->LastTime = SDL_GetTicks();
 
-    // Initialize systems
-    // Graphics
+    /** Initialize subsystems. */
+
+    /** Initialize the render service. */
+    RenderService_Get();
     // Physics
     // Input
 
     Application_AdvanceGameStep(pApplication);
 }
 
-void Application_Run(FApplication* pApplication) {
+    void Application_Run(FApplication* pApplication) {
     SDL_Event Event;
 
     Test_Run();
@@ -78,14 +103,20 @@ void Application_Run(FApplication* pApplication) {
     }
 }
 
-void Application_Shutdown(FApplication* pApplication) {
+    void Application_Shutdown(FApplication* pApplication) {
     SDL_GL_DeleteContext(pApplication->pSDL_GlContext);
     SDL_DestroyWindow(pApplication->pSDL_Window);
     SDL_Quit();
 }
 
-int Application_InitializeSDL(FApplication* pApplication, const uint32_t WindowWidth, const uint32_t WindowHeight, const uint32_t WindowFlags) {
-    const int Error = SDL_Init(SDL_INIT_EVERYTHING);
+#pragma endregion
+
+#pragma region Private Function Definitions
+#pragma endregion
+
+
+I32 Application_InitializeSDL(FApplication* pApplication, const uint32_t WindowWidth, const uint32_t WindowHeight, const uint32_t WindowFlags) {
+    const I32 Error = SDL_Init(SDL_INIT_EVERYTHING);
     if (Error < 0) {
         printf_s("Unable to initialize SDL.");
         return Error;

@@ -18,6 +18,9 @@ typedef struct {
     // std::vector<void*> World;
 } FApplication;
 
+/** Returns the render service singleton. */
+FApplication* Application_Get();
+
 /** Handles the application initialization and startup. */
 void Application_Initialize(FApplication* pApplication);
 
