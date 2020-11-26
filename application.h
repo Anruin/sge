@@ -12,7 +12,6 @@ typedef struct {
 typedef struct {
     FApplicationWindow Window;
     SDL_Window* pSDL_Window;
-    SDL_GLContext pSDL_GlContext;
     uint32_t LastTime;
     int bShutdownRequested;
     // std::vector<void*> World;

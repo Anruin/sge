@@ -1,5 +1,8 @@
 ﻿#include "typedefs.h"
 #include "graphics.h"
+
+#include <SDL.h>
+
 #include "file.h"
 
 #include <string.h>
@@ -7,7 +10,9 @@
 #include <GL/glew.h>
 #include <GL/GL.h>
 #include <SDL_log.h>
+#include <SDL_video.h>
 
+#include "application.h"
 
 #pragma region Defaults
 static const pStr DefaultVertexShaderPath = "assets/vs.glsl";
@@ -49,6 +54,36 @@ FRenderService* RenderService_Get() {
 void RenderService_Initialize(FRenderService* pRenderService) {
     if (pRenderService == NULL) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "pRenderService was nullptr");
+        return;
+    }
+
+    const I32 Error = SDL_Init(SDL_INIT_VIDEO);
+    if (Error < 0) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize SDL events.");
+        return;
+    }
+
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+
+    const FApplication* pApplication = Application_Get();
+    if (pApplication == NULL) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Application was null @ %s", __FUNCTION__);
+        return;
+    }
+
+    if (pApplication->pSDL_Window == NULL) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Application window was null @ %s", __FUNCTION__);
+        return;
+    }
+
+    pRenderService->pSDL_GlContext = SDL_GL_CreateContext(pApplication->pSDL_Window);
+
+    if (pRenderService->pSDL_GlContext == NULL) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Render service SDL GL context was null @ %s", __FUNCTION__);
         return;
     }
 
@@ -281,6 +316,8 @@ U32 RenderService_LoadTexture(FRenderService* pRenderService, const pStr Texture
 }
 
 void RenderService_Cleanup(FRenderService* pRenderService) {
+    SDL_GL_DeleteContext(pRenderService->pSDL_GlContext);
+
     // todo clean chunks
     glDeleteVertexArrays(1, &pRenderService->DefaultVertexArrayId);
     glBindVertexArray(0);

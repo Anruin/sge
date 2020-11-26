@@ -3,10 +3,9 @@ extern "C" {
 #endif
 
 #include <stdio.h>
-#include <GL/glew.h>
 #include "application.h"
 
-#include "graphics.h"
+#include "input.h"
 #include "test.h"
 
 #define EVENT_RUN_GAME_LOOP 1
@@ -70,17 +69,17 @@ void Application_Initialize(FApplication* pApplication) {
     /** Initialize subsystems. */
 
     /** Initialize the render service. */
-    RenderService_Get();
+    InputService_Get();
+    // RenderService_Get();
+    // RenderService_Get();
     // Physics
     // Input
 
     Application_AdvanceGameStep(pApplication);
 }
 
-    void Application_Run(FApplication* pApplication) {
+void Application_Run(FApplication* pApplication) {
     SDL_Event Event;
-
-    Test_Run();
 
     // Main game loop.
     while (!pApplication->bShutdownRequested && SDL_WaitEvent(&Event)) {
@@ -90,7 +89,13 @@ void Application_Initialize(FApplication* pApplication) {
             break;
 
         case SDL_KEYDOWN:
-            // todo: handle shutdown
+        case SDL_KEYUP:
+            const FInputService* pInputService = InputService_Get();
+            if (pInputService == NULL) {
+                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "pInputService is null @ %s", __FUNCTION__);
+            }
+
+            InputService_KeyEvent(&Event);
             break;
 
         case SDL_QUIT:
@@ -101,12 +106,19 @@ void Application_Initialize(FApplication* pApplication) {
             break;
         }
     }
+
+    Test_Run();
 }
 
-    void Application_Shutdown(FApplication* pApplication) {
-    SDL_GL_DeleteContext(pApplication->pSDL_GlContext);
+void Application_Shutdown(FApplication* pApplication) {
     SDL_DestroyWindow(pApplication->pSDL_Window);
     SDL_Quit();
+
+    if (pApplication != NULL) {
+        free(pApplication);
+    }
+
+    pApplication = NULL;
 }
 
 #pragma endregion
@@ -114,22 +126,14 @@ void Application_Initialize(FApplication* pApplication) {
 #pragma region Private Function Definitions
 #pragma endregion
 
-
 I32 Application_InitializeSDL(FApplication* pApplication, const uint32_t WindowWidth, const uint32_t WindowHeight, const uint32_t WindowFlags) {
-    const I32 Error = SDL_Init(SDL_INIT_EVERYTHING);
+    const I32 Error = SDL_Init(SDL_INIT_EVENTS);
     if (Error < 0) {
-        printf_s("Unable to initialize SDL.");
+        printf_s("Unable to initialize SDL events.");
         return Error;
     }
 
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-
     pApplication->pSDL_Window = SDL_CreateWindow(DefaultWindowTitle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WindowWidth, WindowHeight, WindowFlags);
-    pApplication->pSDL_GlContext = SDL_GL_CreateContext(pApplication->pSDL_Window);
 
     pApplication->Window = (FApplicationWindow){DefaultWindowTitle, DefaultWindowWidth, DefaultWindowHeight};
 

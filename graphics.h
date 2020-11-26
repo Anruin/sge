@@ -1,8 +1,11 @@
 #pragma once
+#include <SDL_video.h>
 #include <cglm/cglm.h>
 #include "typedefs.h"
 
 typedef struct {
+    SDL_GLContext pSDL_GlContext;
+    
     U32 ProgramId;
     U32 TextureId;
     U32 Texture;
