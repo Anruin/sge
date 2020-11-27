@@ -75,12 +75,12 @@ void RenderService_Initialize(FRenderService* pRenderService) {
         return;
     }
 
-    if (pApplication->pSDL_Window == NULL) {
+    if (pApplication->Window.pSDL_Window == NULL) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Application window was null @ %s", __FUNCTION__);
         return;
     }
 
-    pRenderService->pSDL_GlContext = SDL_GL_CreateContext(pApplication->pSDL_Window);
+    pRenderService->pSDL_GlContext = SDL_GL_CreateContext(pApplication->Window.pSDL_Window);
 
     if (pRenderService->pSDL_GlContext == NULL) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Render service SDL GL context was null @ %s", __FUNCTION__);

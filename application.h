@@ -3,6 +3,7 @@
 #include "SDL.h"
 
 typedef struct {
+    SDL_Window* pSDL_Window;
     const char* Title;
     uint32_t Width;
     uint32_t Height;
@@ -11,7 +12,6 @@ typedef struct {
 /** The application struct. */
 typedef struct {
     FApplicationWindow Window;
-    SDL_Window* pSDL_Window;
     uint32_t LastTime;
     int bShutdownRequested;
     // std::vector<void*> World;

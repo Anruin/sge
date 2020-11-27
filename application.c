@@ -45,8 +45,6 @@ FApplication* Application_Get() {
         return NULL;
     }
 
-    Application_Initialize(ApplicationInstance);
-
     return ApplicationInstance;
 }
 
@@ -90,12 +88,14 @@ void Application_Run(FApplication* pApplication) {
 
         case SDL_KEYDOWN:
         case SDL_KEYUP:
-            const FInputService* pInputService = InputService_Get();
+        case SDL_MOUSEBUTTONDOWN:
+        case SDL_MOUSEBUTTONUP:
+            FInputService* pInputService = InputService_Get();
             if (pInputService == NULL) {
                 SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "pInputService is null @ %s", __FUNCTION__);
             }
 
-            InputService_KeyEvent(&Event);
+            InputService_HandleEvent(pInputService, &Event);
             break;
 
         case SDL_QUIT:
@@ -111,7 +111,7 @@ void Application_Run(FApplication* pApplication) {
 }
 
 void Application_Shutdown(FApplication* pApplication) {
-    SDL_DestroyWindow(pApplication->pSDL_Window);
+    SDL_DestroyWindow(pApplication->Window.pSDL_Window);
     SDL_Quit();
 
     if (pApplication != NULL) {
@@ -133,9 +133,12 @@ I32 Application_InitializeSDL(FApplication* pApplication, const uint32_t WindowW
         return Error;
     }
 
-    pApplication->pSDL_Window = SDL_CreateWindow(DefaultWindowTitle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WindowWidth, WindowHeight, WindowFlags);
-
-    pApplication->Window = (FApplicationWindow){DefaultWindowTitle, DefaultWindowWidth, DefaultWindowHeight};
+    pApplication->Window = (FApplicationWindow){
+        SDL_CreateWindow(DefaultWindowTitle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WindowWidth, WindowHeight, WindowFlags),
+        DefaultWindowTitle,
+        DefaultWindowWidth,
+        DefaultWindowHeight
+    };
 
     return Error;
 }
@@ -145,7 +148,7 @@ void Application_AdvanceGameStep(FApplication* pApplication) {
     SDL_UserEvent UserEvent;
 
     UserEvent.timestamp = 0;
-    UserEvent.windowID = SDL_GetWindowID(pApplication->pSDL_Window);
+    UserEvent.windowID = SDL_GetWindowID(pApplication->Window.pSDL_Window);
     UserEvent.type = SDL_USEREVENT;
     UserEvent.code = EVENT_RUN_GAME_LOOP;
     UserEvent.data1 = 0;
@@ -169,9 +172,9 @@ void Application_Tick(FApplication* pApplication) {
         DeltaTime = 0.1f;
     }
 
-    if (SDL_GetMouseFocus() == pApplication->pSDL_Window) {
-        SDL_WarpMouseInWindow(pApplication->pSDL_Window, DefaultWindowWidth / 2, DefaultWindowHeight / 2);
-    }
+    // if (SDL_GetMouseFocus() == pApplication->Window.pSDL_Window) {
+    //     SDL_WarpMouseInWindow(pApplication->Window.pSDL_Window, DefaultWindowWidth / 2, DefaultWindowHeight / 2);
+    // }
 
     Application_AdvanceGameStep(pApplication);
 }

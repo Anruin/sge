@@ -4,8 +4,9 @@
 #include "typedefs.h"
 
 typedef struct {
+    I32 bMouseCaptured;
     SDL_GLContext pSDL_GlContext;
-    
+
     U32 ProgramId;
     U32 TextureId;
     U32 Texture;
