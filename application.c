@@ -30,7 +30,7 @@ static void Application_AdvanceGameStep(FApplication* pApplication);
 static void Application_Tick(FApplication* pApplication);
 
 /** Handles SDL events. */
-static void Application_HandleSDLEvent(FApplication* pApplication, SDL_Event Event);
+static void Application_HandleEvent(FApplication* pApplication, SDL_Event Event);
 #pragma endregion
 
 #pragma region Public Function Definitions
@@ -83,13 +83,14 @@ void Application_Run(FApplication* pApplication) {
     while (!pApplication->bShutdownRequested && SDL_WaitEvent(&Event)) {
         switch (Event.type) {
         case SDL_USEREVENT:
-            Application_HandleSDLEvent(pApplication, Event);
+            Application_HandleEvent(pApplication, Event);
             break;
 
         case SDL_KEYDOWN:
         case SDL_KEYUP:
         case SDL_MOUSEBUTTONDOWN:
         case SDL_MOUSEBUTTONUP:
+        case SDL_MOUSEMOTION:
             FInputService* pInputService = InputService_Get();
             if (pInputService == NULL) {
                 SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "pInputService is null @ %s", __FUNCTION__);
@@ -163,7 +164,7 @@ void Application_AdvanceGameStep(FApplication* pApplication) {
 void Application_Tick(FApplication* pApplication) {
     const uint32_t CurrentTime = SDL_GetTicks();
 
-    float DeltaTime = CurrentTime - pApplication->LastTime / 1000.0f;
+    F32 DeltaTime = CurrentTime - pApplication->LastTime / 1000.0f;
     pApplication->LastTime = CurrentTime;
 
     if (DeltaTime <= 0.0f) {
@@ -172,14 +173,15 @@ void Application_Tick(FApplication* pApplication) {
         DeltaTime = 0.1f;
     }
 
-    // if (SDL_GetMouseFocus() == pApplication->Window.pSDL_Window) {
-    //     SDL_WarpMouseInWindow(pApplication->Window.pSDL_Window, DefaultWindowWidth / 2, DefaultWindowHeight / 2);
-    // }
-
     Application_AdvanceGameStep(pApplication);
+
+    FInputService* pInputService = InputService_Get();
+    if (pInputService != NULL) {
+        InputService_Tick(pInputService, DeltaTime);
+    }
 }
 
-void Application_HandleSDLEvent(FApplication* pApplication, const SDL_Event Event) {
+void Application_HandleEvent(FApplication* pApplication, const SDL_Event Event) {
     switch (Event.user.code) {
     case EVENT_RUN_GAME_LOOP:
         Application_Tick(pApplication);

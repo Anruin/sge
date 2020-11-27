@@ -29,6 +29,7 @@ static void DefaultApplicationExitHandler(const SDL_KeyboardEvent* Event);
 typedef struct {
     FInputKeyBinding InputKeyBindings[8];
     FInputAxisBinding InputAxisBindings[8];
+    I32 MouseCaptured;
 } FInputService;
 
 /** Returns the input service singleton. */
