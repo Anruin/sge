@@ -20,6 +20,19 @@ static const pStr DefaultFragmentShaderPath = "assets/fs.glsl";
 static const pStr DefaultTexturePath = "assets/texture.dds";
 #pragma endregion
 
+#pragma region Defaults
+static const char* DefaultWindowTitle = "Shquarkz by Jod and Anry";
+const int DefaultWindowWidth = 1140;
+const int DefaultWindowHeight = 855;
+#pragma endregion
+
+#pragma region Private Fields
+SDL_Window* pSDL_Window;
+const pStr* Title;
+U32 Width;
+U32 Height;
+#pragma endregion
+
 /** The render service instance. */
 static FRenderService* RenderServiceInstance = NULL;
 
@@ -69,18 +82,10 @@ void RenderService_Initialize(FRenderService* pRenderService) {
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-    const FApplication* pApplication = Application_Get();
-    if (pApplication == NULL) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Application was null @ %s", __FUNCTION__);
-        return;
-    }
+    const U32 ContextFlags = SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL;
+    pSDL_Window = SDL_CreateWindow(DefaultWindowTitle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, DefaultWindowWidth, DefaultWindowHeight, ContextFlags);
 
-    if (pApplication->Window.pSDL_Window == NULL) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Application window was null @ %s", __FUNCTION__);
-        return;
-    }
-
-    pRenderService->pSDL_GlContext = SDL_GL_CreateContext(pApplication->Window.pSDL_Window);
+    pRenderService->pSDL_GlContext = SDL_GL_CreateContext(pSDL_Window);
 
     if (pRenderService->pSDL_GlContext == NULL) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Render service SDL GL context was null @ %s", __FUNCTION__);
@@ -131,12 +136,11 @@ void RenderService_Initialize(FRenderService* pRenderService) {
 }
 
 void RenderService_Shutdown() {
-    if (RenderServiceInstance != NULL) {
-        RenderService_Cleanup(RenderServiceInstance);
-        free(RenderServiceInstance);
-    }
+    SDL_DestroyWindow(pSDL_Window);
+}
 
-    RenderServiceInstance = NULL;
+SDL_Window* RenderService_GetSDLWindow() {
+    return pSDL_Window;
 }
 
 void RenderService_Tick(FRenderService* pRenderService, F32 DeltaTime) {

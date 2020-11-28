@@ -1,11 +1,8 @@
 #include "application.h"
 
 int main(int argc, char* argv[]) {
-    FApplication* App = Application_Get();
-
-    Application_Initialize(App);
-    Application_Run(App);
-    Application_Shutdown(App);
-
+    Application_Initialize();
+    Application_Run();
+    Application_Shutdown();
     return 0;
 }

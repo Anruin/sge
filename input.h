@@ -3,46 +3,33 @@
 #include <SDL_keycode.h>
 #include "typedefs.h"
 
+/** Input axis types. */
 typedef enum {
-    SQZ_AXIS_UNKNOWN = 0,
-    SQZ_AXIS_MOUSE_X,
-    SQZ_AXIS_MOUSE_Y,
+    INPUT_AXIS_UNKNOWN = 0,
+    INPUT_AXIS_MOUSE_X,
+    INPUT_AXIS_MOUSE_Y,
 } EInputAxis;
 
-typedef void (*InputHandler)(const SDL_Event* Event);
-typedef void (*InputAxisHandler)(const SDL_Event* Event, EInputAxis Axis, F32 Value);
+/** Input action handler. */
+typedef void (*InputActionHandler)(const SDL_Event* Event);
 
+/** Input axis handler. */
+typedef void (*InputAxisHandler)(const SDL_Event* Event, EInputAxis Axis, I32 Value);
+
+/** Input action binding. */
 typedef struct {
     SDL_Keycode Keycode;
-    InputHandler Handler;
-} FInputKeyBinding;
+    InputActionHandler Handler;
+} FInputActionBinding;
 
+/** Input axis binding. */
 typedef struct {
     EInputAxis Axis;
     InputAxisHandler Handler;
 } FInputAxisBinding;
 
-static void DefaultInputHandler(const SDL_KeyboardEvent* Event);
-static void DefaultAxisHandler(const SDL_KeyboardEvent* Event, EInputAxis Axis, F32 Value);
-static void DefaultApplicationExitHandler(const SDL_KeyboardEvent* Event);
-
-typedef struct {
-    FInputKeyBinding InputKeyBindings[8];
-    FInputAxisBinding InputAxisBindings[8];
-    I32 MouseCaptured;
-} FInputService;
-
-/** Returns the input service singleton. */
-FInputService* InputService_Get();
-
-/** Initializes the input service. Loads and compiles shaders, loads textures, initializes camera and matrices, creates vertex arrays. */
-void InputService_Initialize(FInputService* pInputService);
-
-/** Updates the input service frame. */
-void InputService_Tick(FInputService* pInputService, F32 DeltaTime);
+/** Initializes the input service. Configures key and mouse bindings. */
+void InputService_Initialize();
 
 /** Processes key events received from the SDL. */
-void InputService_HandleEvent(FInputService* pInputService, const SDL_Event* Event);
-
-/** Clears the initialized buffers, shaders, textures and frees memory. */
-void InputService_Shutdown(FInputService* pInputService);
+void InputService_HandleEvent(const SDL_Event* Event);

@@ -37,3 +37,5 @@ void RenderService_Tick(FRenderService* pRenderService, F32 DeltaTime);
 
 /** Clears the initialized buffers, shaders, textures and frees memory. */
 void RenderService_Shutdown();
+
+SDL_Window* RenderService_GetSDLWindow();

@@ -179,6 +179,7 @@
     <ClInclude Include="graphics.h" />
     <ClInclude Include="input.h" />
     <ClInclude Include="physics.h" />
+    <ClCompile Include="time.c" />
     <ClInclude Include="typedefs.h" />
     <ClInclude Include="vector.h" />
   </ItemGroup>
@@ -188,6 +189,7 @@
   <ItemGroup>
     <Content Include="assets\fs.glsl" />
     <Content Include="assets\vs.glsl" />
+    <ClInclude Include="time.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

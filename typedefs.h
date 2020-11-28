@@ -16,6 +16,11 @@ typedef char* pStr;
 typedef const char* pcStr;
 
 typedef enum {
+    FALSE = 0,
+    TRUE
+} Bool;
+
+typedef enum {
     XPositive = 0,
     XNegative = 1,
     YPositive = 2,

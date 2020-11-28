@@ -5,85 +5,60 @@ extern "C" {
 #include <stdio.h>
 #include "application.h"
 
+#include <SDL.h>
+#include <SDL_log.h>
+
+#include "graphics.h"
 #include "input.h"
 #include "test.h"
+#include "time.h"
 
-#define EVENT_RUN_GAME_LOOP 1
+typedef enum {
+    EVENT_RUN_GAME_LOOP = 1
+} EApplicationEventType;
 
-#pragma region Defaults
-static const char* DefaultWindowTitle = "Shquarkz by Jod and Anry";
-const int DefaultWindowWidth = 1140;
-const int DefaultWindowHeight = 855;
+#pragma region Private Fields
+Bool bShutdownRequested;
 #pragma endregion
-
-/** The application instance. */
-static FApplication* ApplicationInstance = NULL;
 
 #pragma region Private Function Definitions
 /** Handles SDL initialization at the application startup. Creates an SDL window. */
-static I32 Application_InitializeSDL(FApplication* pApplication, uint32_t WindowWidth, uint32_t WindowHeight, uint32_t WindowFlags);
+static I32 Application_InitializeSDL();
 
 /** Advances game step by pushing a frame event to SDL. */
-static void Application_AdvanceGameStep(FApplication* pApplication);
+static void Application_AdvanceGameStep();
 
 /** Advances game simulation by a single frame. */
-static void Application_Tick(FApplication* pApplication);
+static void Application_Tick();
 
 /** Handles SDL events. */
-static void Application_HandleEvent(FApplication* pApplication, SDL_Event Event);
+static void Application_HandleEvent(SDL_Event Event);
 #pragma endregion
 
 #pragma region Public Function Definitions
-FApplication* Application_Get() {
-    if (ApplicationInstance != NULL) {
-        return ApplicationInstance;
-    }
+void Application_Initialize() {
 
-    ApplicationInstance = calloc(1, sizeof *ApplicationInstance);
-    if (ApplicationInstance == NULL) {
-        perror("Failed to allocate memory for the application instance");
-        return NULL;
-    }
 
-    return ApplicationInstance;
-}
-
-void Application_Initialize(FApplication* pApplication) {
-    if (pApplication == NULL) {
-        perror("pApplication is nullptr");
-        return;
-    }
-
-    const U32 ContextFlags = SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL;
-
-    const I32 InitSDLResult = Application_InitializeSDL(pApplication, DefaultWindowWidth, DefaultWindowHeight, ContextFlags);
+    const I32 InitSDLResult = Application_InitializeSDL();
     if (InitSDLResult != 0) {
         SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
         return;
     }
 
-    pApplication->LastTime = SDL_GetTicks();
+    TimeService_Initialize();
+    InputService_Initialize();
 
-    /** Initialize subsystems. */
-
-    /** Initialize the render service. */
-    InputService_Get();
-    // RenderService_Get();
-    // RenderService_Get();
-    // Physics
-    // Input
-
-    Application_AdvanceGameStep(pApplication);
+    Application_AdvanceGameStep();
 }
 
-void Application_Run(FApplication* pApplication) {
+void Application_Run() {
     SDL_Event Event;
 
     // Main game loop.
-    while (!pApplication->bShutdownRequested && SDL_WaitEvent(&Event)) {
+    while (!bShutdownRequested && SDL_WaitEvent(&Event)) {
         switch (Event.type) {
         case SDL_USEREVENT:
-            Application_HandleEvent(pApplication, Event);
+            Application_HandleEvent(Event);
             break;
 
         case SDL_KEYDOWN:
@@ -91,16 +66,11 @@ void Application_Run(FApplication* pApplication) {
         case SDL_MOUSEBUTTONDOWN:
         case SDL_MOUSEBUTTONUP:
         case SDL_MOUSEMOTION:
-            FInputService* pInputService = InputService_Get();
-            if (pInputService == NULL) {
-                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "pInputService is null @ %s", __FUNCTION__);
-            }
-
-            InputService_HandleEvent(pInputService, &Event);
+            InputService_HandleEvent(&Event);
             break;
 
         case SDL_QUIT:
-            pApplication->bShutdownRequested = 1;
+            bShutdownRequested = TRUE;
             break;
 
         default:
@@ -111,15 +81,11 @@ void Application_Run(FApplication* pApplication) {
     Test_Run();
 }
 
-void Application_Shutdown(FApplication* pApplication) {
-    SDL_DestroyWindow(pApplication->Window.pSDL_Window);
+void Application_RequestShutdown() {
+}
+
+void Application_Shutdown() {
     SDL_Quit();
-
-    if (pApplication != NULL) {
-        free(pApplication);
-    }
-
-    pApplication = NULL;
 }
 
 #pragma endregion
@@ -127,29 +93,22 @@ void Application_Shutdown(FApplication* pApplication) {
 #pragma region Private Function Definitions
 #pragma endregion
 
-I32 Application_InitializeSDL(FApplication* pApplication, const uint32_t WindowWidth, const uint32_t WindowHeight, const uint32_t WindowFlags) {
+I32 Application_InitializeSDL() {
     const I32 Error = SDL_Init(SDL_INIT_EVENTS);
     if (Error < 0) {
-        printf_s("Unable to initialize SDL events.");
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize SDL events.");
         return Error;
     }
-
-    pApplication->Window = (FApplicationWindow){
-        SDL_CreateWindow(DefaultWindowTitle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WindowWidth, WindowHeight, WindowFlags),
-        DefaultWindowTitle,
-        DefaultWindowWidth,
-        DefaultWindowHeight
-    };
 
     return Error;
 }
 
-void Application_AdvanceGameStep(FApplication* pApplication) {
+void Application_AdvanceGameStep() {
     SDL_Event Event;
     SDL_UserEvent UserEvent;
 
     UserEvent.timestamp = 0;
-    UserEvent.windowID = SDL_GetWindowID(pApplication->Window.pSDL_Window);
+    UserEvent.windowID = SDL_GetWindowID(RenderService_GetSDLWindow());
     UserEvent.type = SDL_USEREVENT;
     UserEvent.code = EVENT_RUN_GAME_LOOP;
     UserEvent.data1 = 0;
@@ -161,30 +120,22 @@ void Application_AdvanceGameStep(FApplication* pApplication) {
     SDL_PushEvent(&Event);
 }
 
-void Application_Tick(FApplication* pApplication) {
-    const uint32_t CurrentTime = SDL_GetTicks();
-
-    F32 DeltaTime = CurrentTime - pApplication->LastTime / 1000.0f;
-    pApplication->LastTime = CurrentTime;
+void Application_Tick() {
+    U32 DeltaTime = TimeService_Tick();
 
     if (DeltaTime <= 0.0f) {
-        DeltaTime = 0.01f;
-    } else if (DeltaTime > 0.1f) {
-        DeltaTime = 0.1f;
+        DeltaTime = 0;
     }
 
-    Application_AdvanceGameStep(pApplication);
+    // Tick services.
 
-    FInputService* pInputService = InputService_Get();
-    if (pInputService != NULL) {
-        InputService_Tick(pInputService, DeltaTime);
-    }
+    Application_AdvanceGameStep();
 }
 
-void Application_HandleEvent(FApplication* pApplication, const SDL_Event Event) {
+void Application_HandleEvent(const SDL_Event Event) {
     switch (Event.user.code) {
     case EVENT_RUN_GAME_LOOP:
-        Application_Tick(pApplication);
+        Application_Tick();
         break;
 
     default:
