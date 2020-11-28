@@ -165,7 +165,7 @@
   <ItemGroup>
     <ClCompile Include="application.c" />
     <ClCompile Include="file.c" />
-    <ClCompile Include="graphics.c" />
+    <ClCompile Include="render.c" />
     <ClCompile Include="input.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="test.c" />
@@ -176,7 +176,7 @@
     <ClInclude Include="cell.h" />
     <ClInclude Include="chunk.h" />
     <ClInclude Include="file.h" />
-    <ClInclude Include="graphics.h" />
+    <ClInclude Include="render.h" />
     <ClInclude Include="input.h" />
     <ClInclude Include="physics.h" />
     <ClCompile Include="time.c" />
