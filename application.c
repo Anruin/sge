@@ -18,13 +18,11 @@ typedef enum {
 } EApplicationEventType;
 
 #pragma region Private Variables
-static Bool bShutdownRequested = 0;
+static Bool bInitialized = False;
+static Bool bShutdownRequested = False;
 #pragma endregion
 
 #pragma region Private Function Declarations
-/** Handles SDL initialization at the application startup. Creates an SDL window. */
-static I32 Application_InitializeSDL();
-
 /** Advances game step by pushing a frame event to SDL. */
 static void Application_AdvanceGameStep();
 
@@ -36,18 +34,30 @@ static void Application_HandleEvent(SDL_Event Event);
 #pragma endregion
 
 #pragma region Public Function Definitions
-void Application_Initialize() {
-    const I32 InitSDLResult = Application_InitializeSDL();
-    if (InitSDLResult != 0) {
-        SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
-        return;
+Bool Application_Initialize() {
+    if (bInitialized) {
+        return bInitialized;
+    }
+
+    if (SDL_Init(0) < 0) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize SDL: %s.", SDL_GetError());
+        return False;
+    }
+
+    if (SDL_InitSubSystem(SDL_INIT_EVENTS) < 0) {
+        SDL_Log("Unable to initialize SDL event subsystem: %s", SDL_GetError());
+        return False;
     }
 
     TimeService_Initialize();
     RenderService_Initialize();
     InputService_Initialize();
 
+    bInitialized = True;
+
     Application_AdvanceGameStep();
+
+    return bInitialized;
 }
 
 void Application_Run() {
@@ -69,7 +79,7 @@ void Application_Run() {
             break;
 
         case SDL_QUIT:
-            bShutdownRequested = TRUE;
+            bShutdownRequested = True;
             break;
 
         default:
@@ -81,25 +91,20 @@ void Application_Run() {
 }
 
 void Application_RequestShutdown() {
+    bShutdownRequested = True;
 }
 
 void Application_Shutdown() {
+    RenderService_Shutdown();
+    TimeService_Shutdown();
+
+    SDL_QuitSubSystem(SDL_INIT_EVENTS);
     SDL_Quit();
 }
 
 #pragma endregion
 
 #pragma region Private Function Definitions
-I32 Application_InitializeSDL() {
-    const I32 Error = SDL_Init(SDL_INIT_EVENTS);
-    if (Error < 0) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize SDL events.");
-        return Error;
-    }
-
-    return Error;
-}
-
 void Application_AdvanceGameStep() {
     SDL_Event Event;
     SDL_UserEvent UserEvent;
@@ -124,7 +129,7 @@ void Application_Tick() {
         DeltaTime = 0;
     }
 
-    RenderService_Tick(DeltaTime);
+    RenderService_Tick();
 
     Application_AdvanceGameStep();
 }

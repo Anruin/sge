@@ -1,7 +1,8 @@
 ﻿#pragma once
+#include "typedefs.h"
 
 /** Handles the application initialization and startup. */
-void Application_Initialize();
+Bool Application_Initialize();
 
 /** Handles the application run and main loop. */
 void Application_Run();

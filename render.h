@@ -6,7 +6,7 @@
 void RenderService_Initialize();
 
 /** Updates the render service frame. */
-void RenderService_Tick(U32 DeltaTime);
+void RenderService_Tick();
 
 /** Clears the initialized buffers, shaders, textures and frees memory. */
 void RenderService_Shutdown();

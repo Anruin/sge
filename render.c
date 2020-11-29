@@ -1,10 +1,4 @@
-﻿#include "typedefs.h"
-#include "render.h"
-
-#include <SDL.h>
-
-#include "file.h"
-
+﻿#include <SDL.h>
 #include <string.h>
 #include <stdio.h>
 #include <GL/glew.h>
@@ -13,42 +7,72 @@
 #include <SDL_log.h>
 #include <SDL_video.h>
 
+#include "typedefs.h"
+#include "render.h"
+#include "file.h"
+
 #pragma region Defaults
 static const pStr DefaultVertexShaderPath = "assets/vs.glsl";
 static const pStr DefaultFragmentShaderPath = "assets/fs.glsl";
 static const pStr DefaultTexturePath = "assets/texture.dds";
-#pragma endregion
 
-#pragma region Defaults
-static const char* DefaultWindowTitle = "Shquarkz by Jod and Anry";
+static const pStr TextureUniformName = "texture";
+static const pStr TransformMatrixUniformName = "MVP";
+static const pStr ModelMatrixUniformName = "M";
+static const pStr CameraPositionUniformName = "eyePosition";
+
+static const char* DefaultWindowTitle = "Shquarkz Game Engine";
 const int DefaultWindowWidth = 1140;
 const int DefaultWindowHeight = 855;
 #pragma endregion
 
 #pragma region Private Fields
+/** Window title. */
+const pStr* WindowTitle;
+
+/** Main window. */
 SDL_Window* pSDL_Window;
-const pStr* Title;
-I32 bMouseCaptured;
+/** Open GL context. */
 SDL_GLContext pSDL_GlContext;
 
+/** Render service initialization flag. */
 Bool bInitialized;
 
+/** Shader program Id. */
 U32 ProgramId;
+/** Texture Id. */
 U32 TextureId;
-U32 Texture;
 
+/** Projection matrix. */
 mat4 Projection;
+/** View matrix. */
 mat4 View;
-U32 TransformMatrixId;
-U32 ModelMatrixId;
 
+/** Texture uniform. */
+U32 TextureUniformId;
+/** Transform matrix uniform. */
+U32 TransformMatrixUniformId;
+/** Model matrix uniform. */
+U32 ModelMatrixUniformId;
+
+/** Camera position. */
 vec3 CameraPosition;
+
+/** Camera forward vector. */
 vec3 CameraForward;
+/** Camera right vector. */
 vec3 CameraRight;
+/** Camera up vector. */
 vec3 CameraUp;
-F32 CameraDistance;
-F32 CameraClippingDistance;
-U32 CameraId;
+
+/** Camera frustum near clipping plane. */
+F32 CameraNearClipDistance;
+/** Camera frustum far clipping plane. */
+F32 CameraFarClipDistance;
+/** Camera uniform. */
+U32 CameraUniformId;
+
+/** Vertex array. */
 U32 DefaultVertexArrayId;
 #pragma endregion
 
@@ -61,65 +85,87 @@ static U32 RenderService_LoadTexture(pStr TexturePath);
 
 /** Clears memory. */
 static void RenderService_Cleanup();
+
+#if _DEBUG
+static void GLAPIENTRY Render_OpenGlMessageCallback(const GLenum Source, const GLenum Type, const GLuint Id, GLenum Severity, GLsizei Length, const GLchar* Message,
+                                                    const void* UserParam) {
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "GL CALLBACK: %s type = 0x%x, severity = 0x%x, source = %d, id = %d, message = %s\n",
+                 (Type == GL_DEBUG_TYPE_ERROR ? "** GL ERROR **" : ""), Type, Severity, Source, Id, Message);
+}
+#endif
+
 #pragma endregion
 
 #pragma region Public Function Definitions
+
 void RenderService_Initialize() {
+    // Initialize SDL video.
     const I32 Error = SDL_Init(SDL_INIT_VIDEO);
     if (Error < 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize SDL events.");
         return;
     }
 
+    // Configure OpenGL.
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
+    // Create SDL window.
     const U32 ContextFlags = SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL;
     pSDL_Window = SDL_CreateWindow(DefaultWindowTitle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, DefaultWindowWidth, DefaultWindowHeight, ContextFlags);
 
+    // Create OpenGL context.
     pSDL_GlContext = SDL_GL_CreateContext(pSDL_Window);
-
     if (pSDL_GlContext == NULL) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Render service SDL GL context was null @ %s", __FUNCTION__);
         return;
     }
 
-    /** Initialize GLEW. */
+    // Initialize GLEW.
     glewExperimental = GL_TRUE;
     if (glewInit() != GLEW_OK) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to initialize GLEW");
         return;
     }
 
+#if _DEBUG
+    // Enable debug output and bind the callback.
+    glEnable(GL_DEBUG_OUTPUT);
+    glDebugMessageCallback(Render_OpenGlMessageCallback, 0);
+#endif
+
+    // Setup camera.
     glm_vec3_zero(CameraPosition);
     glm_vec3_copy((vec3){0, 0, -1}, CameraForward);
     glm_vec3_copy((vec3){1, 0, 0}, CameraRight);
     glm_vec3_copy((vec3){0, 1, 0}, CameraUp);
 
-    /** Define perspective camera view matrix. */
+    // Define perspective camera view matrix.
     glm_perspective(45.0f, 4.0f / 3.0f, 0.1f, 1000.f, Projection);
 
-    /** Define camera look at matrix. */
+    // Define camera look at matrix.
     glm_lookat(CameraPosition, CameraForward, CameraUp, View);
 
-    /** Fill window with the background color. */
+    // Fill window with the background color.
     glClearColor(0.f, 0.f, 0.f, 0.f);
 
-    /** Enable depth test. */
+    // Enable depth test.
     glEnable(GL_DEPTH_TEST);
-    /** Draw the triangle if it is closer to the camera than the previous one. */
+    // Draw the triangle if it is closer to the camera than the previous one.
     glDepthFunc(GL_LESS);
-    /** Cull triangles which normals are not facing the camera. */
+    // Cull triangles which normals are not facing the camera.
     glEnable(GL_CULL_FACE);
 
     ProgramId = RenderService_LoadShaders(DefaultVertexShaderPath, DefaultFragmentShaderPath);
-    Texture = RenderService_LoadTexture(DefaultTexturePath);
-    TextureId = glGetUniformLocation(ProgramId, "texture");
-    TransformMatrixId = glGetUniformLocation(ProgramId, "transformMatrix");
-    ModelMatrixId = glGetUniformLocation(ProgramId, "modelMatrix");
+    if (ProgramId == 0) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load shaders.");
+        return;
+    }
+
+    TextureId = RenderService_LoadTexture(DefaultTexturePath);
 
     glGenVertexArrays(1, &DefaultVertexArrayId);
     glBindVertexArray(DefaultVertexArrayId);
@@ -127,9 +173,32 @@ void RenderService_Initialize() {
     // todo load chunks
 
     glUseProgram(ProgramId);
-    CameraId = glGetUniformLocation(ProgramId, "cameraPosition");
 
-    bInitialized = TRUE;
+    ModelMatrixUniformId = glGetUniformLocation(ProgramId, ModelMatrixUniformName);
+    if (ModelMatrixUniformId == -1) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load uniform by name: %s", TextureUniformName);
+        return;
+    }
+
+    TransformMatrixUniformId = glGetUniformLocation(ProgramId, TransformMatrixUniformName);
+    if (TransformMatrixUniformId == -1) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load uniform by name: %s", TransformMatrixUniformName);
+        return;
+    }
+
+    CameraUniformId = glGetUniformLocation(ProgramId, CameraPositionUniformName);
+    if (CameraUniformId == -1) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load uniform by name: %s", CameraUniformId);
+        return;
+    }
+
+    TextureUniformId = glGetUniformLocation(ProgramId, TextureUniformName);
+    if (TextureUniformId == -1) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load uniform by name: %s", TextureUniformName);
+        return;
+    }
+
+    bInitialized = True;
 }
 
 void RenderService_Shutdown() {
@@ -140,30 +209,26 @@ SDL_Window* RenderService_GetSDLWindow() {
     return pSDL_Window;
 }
 
-void RenderService_Tick(U32 DeltaTime) {
+void RenderService_Tick() {
     if (!bInitialized) {
         return;
     }
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClearColor(0.f, 0.f, 0.f, 0.f);
 
     /** Use the shader program. */
     glUseProgram(ProgramId);
 
     /** Send information to the shader program. */
-    glUniform3f(CameraId, CameraPosition[0], CameraPosition[1], CameraPosition[2]);
+    glUniform3f(CameraUniformId, CameraPosition[0], CameraPosition[1], CameraPosition[2]);
+
     /** Bind texture to the texture unit 0. */
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(TextureId, 0);
+    // glActiveTexture(GL_TEXTURE0);
+    // glBindTexture(TextureUniformId, TextureId);
+
     /** Set texture sampler to texture unit 0. */
-    glUniform1i(TextureId, 0);
-
-    // todo: update chunks
-
-    const GLenum Error = glGetError();
-    if (Error != GL_NO_ERROR) {
-        printf("GL error %#X\n", Error);
-    }
+    // glUniform1i(TextureUniformId, 0);
 }
 #pragma endregion
 
@@ -196,7 +261,12 @@ U32 RenderService_LoadShaders(const pStr VertexShaderPath, const pStr FragmentSh
             }
 
             glGetShaderInfoLog(VertexShaderId, VertexShaderLogLength, &VertexShaderLogLength, VertexShaderLog);
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", VertexShaderLog);
+
+            free(VertexShaderLog);
         }
+
+        return False;
     }
 
     // Compile fragment shader.
@@ -220,16 +290,51 @@ U32 RenderService_LoadShaders(const pStr VertexShaderPath, const pStr FragmentSh
         glGetShaderiv(FragmentShaderId, GL_INFO_LOG_LENGTH, &FragmentShaderLogLength);
 
         if (FragmentShaderLogLength > 0) {
-            const pStr VertexShaderLog = malloc(FragmentShaderLogLength);
-            if (VertexShaderLog == NULL) {
+            const pStr FragmentShaderLog = malloc(FragmentShaderLogLength);
+            if (FragmentShaderLog == NULL) {
                 SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to allocate memory for vertex shader log");
             }
 
-            glGetShaderInfoLog(VertexShaderId, FragmentShaderLogLength, &FragmentShaderLogLength, VertexShaderLog);
+            glGetShaderInfoLog(VertexShaderId, FragmentShaderLogLength, &FragmentShaderLogLength, FragmentShaderLog);
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", FragmentShaderLog);
+
+            free(FragmentShaderLog);
         }
+
+        return 0;
     }
 
-    return 0;
+    const U32 _ProgramId = glCreateProgram();
+    glAttachShader(_ProgramId, VertexShaderId);
+    glAttachShader(_ProgramId, FragmentShaderId);
+    glLinkProgram(_ProgramId);
+
+    I32 ProgramLinkStatus = GL_FALSE;
+    glGetProgramiv(_ProgramId, GL_LINK_STATUS, &ProgramLinkStatus);
+
+    if (ProgramLinkStatus == GL_FALSE) {
+        I32 ProgramLinkLogLength;
+        glGetProgramiv(FragmentShaderId, GL_INFO_LOG_LENGTH, &ProgramLinkLogLength);
+
+        if (ProgramLinkLogLength > 0) {
+            const pStr ProgramLinkLog = malloc(ProgramLinkLogLength);
+            if (ProgramLinkLog == NULL) {
+                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to allocate memory for program link log");
+            }
+
+            glGetShaderInfoLog(VertexShaderId, ProgramLinkLogLength, &ProgramLinkLogLength, ProgramLinkLog);
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Program link log: %s", ProgramLinkLog);
+
+            free(ProgramLinkLog);
+        }
+
+        return 0;
+    }
+
+    glDeleteShader(VertexShaderId);
+    glDeleteShader(FragmentShaderId);
+
+    return _ProgramId;
 }
 
 U32 RenderService_LoadTexture(const pStr TexturePath) {
@@ -317,6 +422,6 @@ void RenderService_Cleanup() {
     glDeleteVertexArrays(1, &DefaultVertexArrayId);
     glBindVertexArray(0);
     glDeleteProgram(ProgramId);
-    glDeleteTextures(1, &TextureId);
+    glDeleteTextures(1, &TextureUniformId);
 }
 #pragma endregion

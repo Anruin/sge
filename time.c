@@ -1,10 +1,13 @@
 #include "time.h"
 
+
+#include <SDL.h>
 #include <SDL_timer.h>
 
 #define FRAME_NUMBER 10
 
 #pragma region Private Variables
+static Bool bInitialized = False;
 /** An array to store frame times. */
 static U32 FrameTimes[FRAME_NUMBER];
 /** Last frame time. */
@@ -24,8 +27,26 @@ static void TimeService_CalculateFps();
 #pragma endregion
 
 #pragma region Public Function Definitions
-void TimeService_Initialize() {
+Bool TimeService_Initialize() {
+    if (bInitialized) {
+        return bInitialized;
+    }
+
+    if (SDL_Init(0) < 0) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to initialize SDL.");
+        return False;
+    }
+
+    if (SDL_InitSubSystem(SDL_INIT_TIMER) < 0) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to initialize SDL timer subsystem.");
+        return False;
+    }
+
     LastFrameTime = SDL_GetTicks();
+
+    bInitialized = True;
+
+    return bInitialized;
 }
 
 U32 TimeService_Tick() {
@@ -38,7 +59,15 @@ U32 TimeService_Tick() {
 }
 
 void TimeService_Shutdown() {
+    if (bInitialized) {
+        SDL_QuitSubSystem(SDL_INIT_TIMER);
+    }
 }
+
+U32 TimeService_GetDeltaTime() {
+    return DeltaTime;
+}
+
 #pragma endregion
 
 #pragma region Private Function Definitions

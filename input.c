@@ -62,22 +62,16 @@ void InputService_HandleEvent(const SDL_Event* Event) {
             }
         }
     }
-
-    // Ignore events not related to keyboard or mouse.
-    if (Event->type < SDL_KEYDOWN || Event->type > SDL_MOUSEWHEEL) {
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Non related event received: %d @ %s", Event->type, __FUNCTION__);
-        return;
-    }
 }
 #pragma endregion
 
 #pragma region Private Function Definitions
 void DefaultInputHandler(const SDL_Event* Event) {
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "%x: %d", Event->key.keysym.sym, Event->type == SDL_KEYDOWN ? 1 : 0);
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Input Action: %x: %d", Event->key.keysym.sym, Event->type == SDL_KEYDOWN ? 1 : 0);
 }
 
 void DefaultAxisHandler(const SDL_Event* Event, const EInputAxis Axis, const I32 Value) {
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "%x: %d", Axis, Value);
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Input Axis: %x: %d", Axis, Value);
 }
 
 void DefaultApplicationExitHandler(const SDL_Event* Event) {

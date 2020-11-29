@@ -18,15 +18,15 @@ uniform mat4 MVP;
 uniform mat4 M;
 uniform vec3 eyePosition;
 
-void main(){
+void main() {
 
-norm = (M*vec4(normal,0)).xyz;
-pos = (M*vec4(position,1)).xyz;
-eyepos = eyePosition;
-tex1 = intex1;
-tex4 = intex4;
+    norm = (M*vec4(normal, 0)).xyz;
+    pos = (M*vec4(position, 1)).xyz;
+    eyepos = eyePosition;
+    tex1 = intex1;
+    tex4 = intex4;
 
-// Output position of the vertex, in clip space : MVP * position
-gl_Position =  MVP * vec4(position,1);
+    // Output position of the vertex, in clip space : MVP * position
+    gl_Position =  MVP * vec4(position, 1);
 
 }
