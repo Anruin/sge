@@ -1,5 +1,4 @@
 ﻿#pragma once
-#include <string.h>
 typedef unsigned char Byte;
 typedef unsigned char Bitmap;
 typedef char I8;
@@ -29,12 +28,6 @@ typedef enum {
     ZNegative = 5,
 } EDirection;
 
-/** Four-character codes. */
-#define FOURCC_DXT1 0x31545844
-#define FOURCC_DXT3 0x33545844
-#define FOURCC_DXT5 0x35545844
-
-
 #ifdef __unix__
 #define OS_Windows 0
 #include <unistd.h>
@@ -44,8 +37,6 @@ typedef enum {
 #elif defined(_WIN32) || defined(WIN32) || defined(_WIN64) || defined(WIN64)
 #define OS_WINDOWS 1
 #include <windows.h>
-#include <stdio.h>
-#include <tchar.h>
 
 inline int Is64BitWindows() {
 #if defined(_WIN64)

@@ -24,6 +24,12 @@ static const pStr CameraPositionUniformName = "eyePosition";
 static const char* DefaultWindowTitle = "Shquarkz Game Engine";
 const int DefaultWindowWidth = 1140;
 const int DefaultWindowHeight = 855;
+
+/** Four-character codes. */
+#define FOURCC_DXT1 0x31545844
+#define FOURCC_DXT3 0x33545844
+#define FOURCC_DXT5 0x35545844
+
 #pragma endregion
 
 #pragma region Private Fields
@@ -203,6 +209,7 @@ void RenderService_Initialize() {
 
 void RenderService_Shutdown() {
     SDL_DestroyWindow(pSDL_Window);
+    RenderService_Cleanup();
 }
 
 SDL_Window* RenderService_GetSDLWindow() {

@@ -4,8 +4,8 @@
 #include <stdlib.h>
 
 #if OS_WINDOWS
-#include <io.h>
-#include "windows.h"
+#include <windows.h>
+#include <sys/stat.h>
 #endif
 
 long File_GetSize(const pStr FileName) {
