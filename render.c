@@ -1,5 +1,5 @@
 ﻿#include "typedefs.h"
-#include "graphics.h"
+#include "render.h"
 
 #include <SDL.h>
 
@@ -9,10 +9,9 @@
 #include <stdio.h>
 #include <GL/glew.h>
 #include <GL/GL.h>
+#include <cglm/cglm.h>
 #include <SDL_log.h>
 #include <SDL_video.h>
-
-#include "application.h"
 
 #pragma region Defaults
 static const pStr DefaultVertexShaderPath = "assets/vs.glsl";
@@ -29,47 +28,43 @@ const int DefaultWindowHeight = 855;
 #pragma region Private Fields
 SDL_Window* pSDL_Window;
 const pStr* Title;
-U32 Width;
-U32 Height;
-#pragma endregion
+I32 bMouseCaptured;
+SDL_GLContext pSDL_GlContext;
 
-/** The render service instance. */
-static FRenderService* RenderServiceInstance = NULL;
+Bool bInitialized;
+
+U32 ProgramId;
+U32 TextureId;
+U32 Texture;
+
+mat4 Projection;
+mat4 View;
+U32 TransformMatrixId;
+U32 ModelMatrixId;
+
+vec3 CameraPosition;
+vec3 CameraForward;
+vec3 CameraRight;
+vec3 CameraUp;
+F32 CameraDistance;
+F32 CameraClippingDistance;
+U32 CameraId;
+U32 DefaultVertexArrayId;
+#pragma endregion
 
 #pragma region Private Function Declarations
 /** Loads and compiles shaders. */
-static U32 RenderService_LoadShaders(FRenderService* pRenderService, pStr VertexShaderPath, pStr FragmentShaderPath);
+static U32 RenderService_LoadShaders(pStr VertexShaderPath, pStr FragmentShaderPath);
 
 /** Loads DDS texture. */
-static U32 RenderService_LoadTexture(FRenderService* pRenderService, pStr TexturePath);
+static U32 RenderService_LoadTexture(pStr TexturePath);
 
 /** Clears memory. */
-static void RenderService_Cleanup(FRenderService* pRenderService);
+static void RenderService_Cleanup();
 #pragma endregion
 
 #pragma region Public Function Definitions
-FRenderService* RenderService_Get() {
-    if (RenderServiceInstance != NULL) {
-        return RenderServiceInstance;
-    }
-
-    RenderServiceInstance = calloc(1, sizeof *RenderServiceInstance);
-    if (RenderServiceInstance == NULL) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to allocate memory for the render service");
-        return NULL;
-    }
-
-    RenderService_Initialize(RenderServiceInstance);
-
-    return RenderServiceInstance;
-}
-
-void RenderService_Initialize(FRenderService* pRenderService) {
-    if (pRenderService == NULL) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "pRenderService was nullptr");
-        return;
-    }
-
+void RenderService_Initialize() {
     const I32 Error = SDL_Init(SDL_INIT_VIDEO);
     if (Error < 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize SDL events.");
@@ -85,9 +80,9 @@ void RenderService_Initialize(FRenderService* pRenderService) {
     const U32 ContextFlags = SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL;
     pSDL_Window = SDL_CreateWindow(DefaultWindowTitle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, DefaultWindowWidth, DefaultWindowHeight, ContextFlags);
 
-    pRenderService->pSDL_GlContext = SDL_GL_CreateContext(pSDL_Window);
+    pSDL_GlContext = SDL_GL_CreateContext(pSDL_Window);
 
-    if (pRenderService->pSDL_GlContext == NULL) {
+    if (pSDL_GlContext == NULL) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Render service SDL GL context was null @ %s", __FUNCTION__);
         return;
     }
@@ -99,16 +94,16 @@ void RenderService_Initialize(FRenderService* pRenderService) {
         return;
     }
 
-    glm_vec3_zero(pRenderService->CameraPosition);
-    glm_vec3_copy((vec3){0, 0, -1}, pRenderService->CameraForward);
-    glm_vec3_copy((vec3){1, 0, 0}, pRenderService->CameraRight);
-    glm_vec3_copy((vec3){0, 1, 0}, pRenderService->CameraUp);
+    glm_vec3_zero(CameraPosition);
+    glm_vec3_copy((vec3){0, 0, -1}, CameraForward);
+    glm_vec3_copy((vec3){1, 0, 0}, CameraRight);
+    glm_vec3_copy((vec3){0, 1, 0}, CameraUp);
 
     /** Define perspective camera view matrix. */
-    glm_perspective(45.0f, 4.0f / 3.0f, 0.1f, 1000.f, pRenderService->Projection);
+    glm_perspective(45.0f, 4.0f / 3.0f, 0.1f, 1000.f, Projection);
 
     /** Define camera look at matrix. */
-    glm_lookat(pRenderService->CameraPosition, pRenderService->CameraForward, pRenderService->CameraUp, pRenderService->View);
+    glm_lookat(CameraPosition, CameraForward, CameraUp, View);
 
     /** Fill window with the background color. */
     glClearColor(0.f, 0.f, 0.f, 0.f);
@@ -120,19 +115,21 @@ void RenderService_Initialize(FRenderService* pRenderService) {
     /** Cull triangles which normals are not facing the camera. */
     glEnable(GL_CULL_FACE);
 
-    pRenderService->ProgramId = RenderService_LoadShaders(pRenderService, DefaultVertexShaderPath, DefaultFragmentShaderPath);
-    pRenderService->Texture = RenderService_LoadTexture(pRenderService, DefaultTexturePath);
-    pRenderService->TextureId = glGetUniformLocation(pRenderService->ProgramId, "texture");
-    pRenderService->TransformMatrixId = glGetUniformLocation(pRenderService->ProgramId, "transformMatrix");
-    pRenderService->ModelMatrixId = glGetUniformLocation(pRenderService->ProgramId, "modelMatrix");
+    ProgramId = RenderService_LoadShaders(DefaultVertexShaderPath, DefaultFragmentShaderPath);
+    Texture = RenderService_LoadTexture(DefaultTexturePath);
+    TextureId = glGetUniformLocation(ProgramId, "texture");
+    TransformMatrixId = glGetUniformLocation(ProgramId, "transformMatrix");
+    ModelMatrixId = glGetUniformLocation(ProgramId, "modelMatrix");
 
-    glGenVertexArrays(1, &pRenderService->DefaultVertexArrayId);
-    glBindVertexArray(pRenderService->DefaultVertexArrayId);
+    glGenVertexArrays(1, &DefaultVertexArrayId);
+    glBindVertexArray(DefaultVertexArrayId);
 
     // todo load chunks
 
-    glUseProgram(pRenderService->ProgramId);
-    pRenderService->CameraId = glGetUniformLocation(pRenderService->ProgramId, "cameraPosition");
+    glUseProgram(ProgramId);
+    CameraId = glGetUniformLocation(ProgramId, "cameraPosition");
+
+    bInitialized = TRUE;
 }
 
 void RenderService_Shutdown() {
@@ -143,19 +140,23 @@ SDL_Window* RenderService_GetSDLWindow() {
     return pSDL_Window;
 }
 
-void RenderService_Tick(FRenderService* pRenderService, F32 DeltaTime) {
+void RenderService_Tick(U32 DeltaTime) {
+    if (!bInitialized) {
+        return;
+    }
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     /** Use the shader program. */
-    glUseProgram(pRenderService->ProgramId);
+    glUseProgram(ProgramId);
 
     /** Send information to the shader program. */
-    glUniform3f(pRenderService->CameraId, pRenderService->CameraPosition[0], pRenderService->CameraPosition[1], pRenderService->CameraPosition[2]);
+    glUniform3f(CameraId, CameraPosition[0], CameraPosition[1], CameraPosition[2]);
     /** Bind texture to the texture unit 0. */
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(pRenderService->TextureId, 0);
+    glBindTexture(TextureId, 0);
     /** Set texture sampler to texture unit 0. */
-    glUniform1i(pRenderService->TextureId, 0);
+    glUniform1i(TextureId, 0);
 
     // todo: update chunks
 
@@ -167,12 +168,7 @@ void RenderService_Tick(FRenderService* pRenderService, F32 DeltaTime) {
 #pragma endregion
 
 #pragma region Private Function Definitions
-U32 RenderService_LoadShaders(FRenderService* pRenderService, const pStr VertexShaderPath, const pStr FragmentShaderPath) {
-    if (pRenderService == NULL) {
-        printf("pRenderService was nullptr");
-        return 0;
-    }
-
+U32 RenderService_LoadShaders(const pStr VertexShaderPath, const pStr FragmentShaderPath) {
     // Compile vertex shader.
     const GLuint VertexShaderId = glCreateShader(GL_VERTEX_SHADER);
 
@@ -236,12 +232,7 @@ U32 RenderService_LoadShaders(FRenderService* pRenderService, const pStr VertexS
     return 0;
 }
 
-U32 RenderService_LoadTexture(FRenderService* pRenderService, const pStr TexturePath) {
-    if (pRenderService == NULL) {
-        printf("pRenderService was nullptr");
-        return 0;
-    }
-
+U32 RenderService_LoadTexture(const pStr TexturePath) {
     U8 Header[124];
 
     /** Try to open the file. */
@@ -319,13 +310,13 @@ U32 RenderService_LoadTexture(FRenderService* pRenderService, const pStr Texture
     return TextureId;
 }
 
-void RenderService_Cleanup(FRenderService* pRenderService) {
-    SDL_GL_DeleteContext(pRenderService->pSDL_GlContext);
+void RenderService_Cleanup() {
+    SDL_GL_DeleteContext(pSDL_GlContext);
 
     // todo clean chunks
-    glDeleteVertexArrays(1, &pRenderService->DefaultVertexArrayId);
+    glDeleteVertexArrays(1, &DefaultVertexArrayId);
     glBindVertexArray(0);
-    glDeleteProgram(pRenderService->ProgramId);
-    glDeleteTextures(1, &pRenderService->TextureId);
+    glDeleteProgram(ProgramId);
+    glDeleteTextures(1, &TextureId);
 }
 #pragma endregion

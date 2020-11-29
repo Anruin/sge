@@ -2,7 +2,6 @@
 
 #include "block.h"
 #include "file.h"
-#include "graphics.h"
 
 void Test_Run() {
     // Test block.
@@ -19,12 +18,4 @@ void Test_Run() {
     U64 FileLength;
     File_Read("./assets/vs.glsl", &FileLength);
     printf("%llu\n", FileLength);
-
-    // Test render service.
-    FRenderService* RenderService = RenderService_Get();
-    if (RenderService == NULL) {
-        printf("Render service is nullptr\n");
-    } else {
-        printf("Render Service OK: 0x%p\n", RenderService);
-    }
 }

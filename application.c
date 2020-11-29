@@ -8,7 +8,7 @@ extern "C" {
 #include <SDL.h>
 #include <SDL_log.h>
 
-#include "graphics.h"
+#include "render.h"
 #include "input.h"
 #include "test.h"
 #include "time.h"
@@ -17,11 +17,11 @@ typedef enum {
     EVENT_RUN_GAME_LOOP = 1
 } EApplicationEventType;
 
-#pragma region Private Fields
-Bool bShutdownRequested;
+#pragma region Private Variables
+static Bool bShutdownRequested = 0;
 #pragma endregion
 
-#pragma region Private Function Definitions
+#pragma region Private Function Declarations
 /** Handles SDL initialization at the application startup. Creates an SDL window. */
 static I32 Application_InitializeSDL();
 
@@ -37,8 +37,6 @@ static void Application_HandleEvent(SDL_Event Event);
 
 #pragma region Public Function Definitions
 void Application_Initialize() {
-
-
     const I32 InitSDLResult = Application_InitializeSDL();
     if (InitSDLResult != 0) {
         SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
@@ -46,6 +44,7 @@ void Application_Initialize() {
     }
 
     TimeService_Initialize();
+    RenderService_Initialize();
     InputService_Initialize();
 
     Application_AdvanceGameStep();
@@ -91,8 +90,6 @@ void Application_Shutdown() {
 #pragma endregion
 
 #pragma region Private Function Definitions
-#pragma endregion
-
 I32 Application_InitializeSDL() {
     const I32 Error = SDL_Init(SDL_INIT_EVENTS);
     if (Error < 0) {
@@ -127,7 +124,7 @@ void Application_Tick() {
         DeltaTime = 0;
     }
 
-    // Tick services.
+    RenderService_Tick(DeltaTime);
 
     Application_AdvanceGameStep();
 }
@@ -142,6 +139,7 @@ void Application_HandleEvent(const SDL_Event Event) {
         break;
     }
 }
+#pragma endregion
 
 #ifdef __cplusplus
     }

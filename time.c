@@ -1,7 +1,5 @@
 #include "time.h"
 
-
-#include <SDL_log.h>
 #include <SDL_timer.h>
 
 #define FRAME_NUMBER 10
@@ -25,6 +23,7 @@ static U32 Ticks;
 static void TimeService_CalculateFps();
 #pragma endregion
 
+#pragma region Public Function Definitions
 void TimeService_Initialize() {
     LastFrameTime = SDL_GetTicks();
 }
@@ -40,6 +39,7 @@ U32 TimeService_Tick() {
 
 void TimeService_Shutdown() {
 }
+#pragma endregion
 
 #pragma region Private Function Definitions
 void TimeService_CalculateFps() {
@@ -64,7 +64,5 @@ void TimeService_CalculateFps() {
     FramesPerSecond /= Count;
 
     FramesPerSecond = 1000.f / FramesPerSecond;
-
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "FPS: %.3f", FramesPerSecond);
 }
 #pragma endregion
