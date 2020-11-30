@@ -51,4 +51,6 @@ inline int Is64BitWindows() {
 #endif
 }
 
+#define COLOR_BYTE(Color) Color/255.f
+
 #endif

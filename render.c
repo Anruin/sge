@@ -143,6 +143,8 @@ void RenderService_Initialize() {
     glDebugMessageCallback(Render_OpenGlMessageCallback, 0);
 #endif
 
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "%s", glGetString(GL_VERSION));
+
     // Setup camera.
     glm_vec3_zero(CameraPosition);
     glm_vec3_copy((vec3){0, 0, -1}, CameraForward);
@@ -222,7 +224,7 @@ void RenderService_Tick() {
     }
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glClearColor(0.f, 0.f, 0.f, 0.f);
+    glClearColor(COLOR_BYTE(10), COLOR_BYTE(9), COLOR_BYTE(8), 0.f);
 
     /** Use the shader program. */
     glUseProgram(ProgramId);
@@ -236,6 +238,8 @@ void RenderService_Tick() {
 
     /** Set texture sampler to texture unit 0. */
     // glUniform1i(TextureUniformId, 0);
+
+    SDL_GL_SwapWindow(pSDL_Window);
 }
 #pragma endregion
 
