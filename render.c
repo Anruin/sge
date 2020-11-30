@@ -9,12 +9,16 @@
 
 #include "typedefs.h"
 #include "render.h"
+
+#include <SDL_ttf.h>
+
 #include "file.h"
+#include "text.h"
 
 #pragma region Defaults
-static const pStr DefaultVertexShaderPath = "assets/vs.glsl";
-static const pStr DefaultFragmentShaderPath = "assets/fs.glsl";
-static const pStr DefaultTexturePath = "assets/texture.dds";
+static const pStr DefaultVertexShaderPath = "assets/shaders/vs.glsl";
+static const pStr DefaultFragmentShaderPath = "assets/shaders/fs.glsl";
+static const pStr DefaultTexturePath = "assets/textures/texture.dds";
 
 static const pStr TextureUniformName = "texture";
 static const pStr TransformMatrixUniformName = "MVP";
@@ -40,6 +44,12 @@ const pStr* WindowTitle;
 SDL_Window* pSDL_Window;
 /** Open GL context. */
 SDL_GLContext pSDL_GlContext;
+/** SDL Renderer for simple drawing. */
+SDL_Renderer* pSDL_Renderer;
+
+SDL_Rect TextRect = {0, 0, 0, 0};
+pStr TextLine = "";
+SDL_Texture* TextTexture = NULL;
 
 /** Render service initialization flag. */
 Bool bInitialized;
@@ -106,9 +116,13 @@ static void GLAPIENTRY Render_OpenGlMessageCallback(const GLenum Source, const G
 
 void RenderService_Initialize() {
     // Initialize SDL video.
-    const I32 Error = SDL_Init(SDL_INIT_VIDEO);
-    if (Error < 0) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize SDL events.");
+    if (SDL_Init(0) < 0) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize SDL.");
+        return;
+    }
+
+    if (SDL_InitSubSystem(SDL_INIT_VIDEO) < 0) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize SDL video.");
         return;
     }
 
@@ -122,6 +136,12 @@ void RenderService_Initialize() {
     // Create SDL window.
     const U32 ContextFlags = SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL;
     pSDL_Window = SDL_CreateWindow(DefaultWindowTitle, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, DefaultWindowWidth, DefaultWindowHeight, ContextFlags);
+
+    pSDL_Renderer = SDL_CreateRenderer(pSDL_Window, -1, SDL_RENDERER_ACCELERATED);
+    if (pSDL_Renderer == NULL) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize SDL renderer.");
+        return;
+    }
 
     // Create OpenGL context.
     pSDL_GlContext = SDL_GL_CreateContext(pSDL_Window);
@@ -212,10 +232,93 @@ void RenderService_Initialize() {
 void RenderService_Shutdown() {
     SDL_DestroyWindow(pSDL_Window);
     RenderService_Cleanup();
+
+    SDL_QuitSubSystem(SDL_INIT_VIDEO);
 }
 
 SDL_Window* RenderService_GetSDLWindow() {
     return pSDL_Window;
+}
+
+void RenderService_DrawText(const pStr Text) {
+    TextLine = Text;
+
+    const SDL_Color TextColor = {1, 0, 0, 1};
+
+    TTF_Font* Font = TextService_GetFont();
+    if (Font == NULL) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to get a font!");
+        return;
+    }
+
+    SDL_Surface* TextSurface = TTF_RenderText_Solid(Font, Text, TextColor);
+    if (TextSurface == NULL) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create a text surface!");
+        return;
+    }
+
+    TextTexture = SDL_CreateTextureFromSurface(pSDL_Renderer, TextSurface);
+    if (TextTexture == NULL) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create a text texture!");
+        return;
+    }
+
+    SDL_FreeSurface(TextSurface);
+
+    if (SDL_QueryTexture(TextTexture, NULL, NULL, &TextRect.w, &TextRect.h) < 0) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to query a text texture!");
+    }
+}
+
+void RenderService_RenderText() {
+    // void RenderText(std::string message, SDL_Color color, int x, int y, TTF_Font* font) 
+    //
+    // glMatrixMode(GL_MODELVIEW);
+    // glPushMatrix();
+    // glLoadIdentity();
+    //
+    // gluOrtho2D(0, gWindow->getWidth(),0,gWindow->getHeight()); 
+    // glMatrixMode(GL_PROJECTION);
+    // glPushMatrix();
+    // glLoadIdentity();
+    //
+    // glDisable(GL_DEPTH_TEST);
+    // glEnable(GL_TEXTURE_2D);
+    // glEnable(GL_BLEND);
+    // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    //
+    // GLuint texture;
+    // glGenTextures(1, &texture);
+    // glBindTexture(GL_TEXTURE_2D, texture);
+    //
+    // SDL_Surface * sFont = TTF_RenderText_Blended(font, message.c_str(), color);
+    //
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, sFont->w, sFont->h, 0, GL_BGRA, 
+    //               GL_UNSIGNED_BYTE, sFont->pixels);
+    //
+    // glBegin(GL_QUADS);
+    // {
+    //     glTexCoord2f(0,1); glVertex2f(x, y);
+    //     glTexCoord2f(1,1); glVertex2f(x + sFont->w, y);
+    //     glTexCoord2f(1,0); glVertex2f(x + sFont->w, y + sFont->h);
+    //     glTexCoord2f(0,0); glVertex2f(x, y + sFont->h);
+    // }
+    // glEnd();
+    //
+    // glDisable(GL_BLEND);
+    // glDisable(GL_TEXTURE_2D);
+    // glEnable(GL_DEPTH_TEST);
+    //
+    // glMatrixMode(GL_PROJECTION);
+    // glPopMatrix();
+    // glMatrixMode(GL_PROJECTION);
+    // glPopMatrix();
+    //
+    // glDeleteTextures(1, &texture);
+    // SDL_FreeSurface(sFont);
+    //
 }
 
 void RenderService_Tick() {
@@ -238,6 +341,10 @@ void RenderService_Tick() {
 
     /** Set texture sampler to texture unit 0. */
     // glUniform1i(TextureUniformId, 0);
+
+    if (pSDL_Renderer != NULL && TextTexture != NULL) {
+        SDL_RenderCopy(pSDL_Renderer, TextTexture, NULL, &TextRect);
+    }
 
     SDL_GL_SwapWindow(pSDL_Window);
 }

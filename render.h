@@ -13,3 +13,5 @@ void RenderService_Shutdown();
 
 /** Returns the SDL window. */
 SDL_Window* RenderService_GetSDLWindow();
+
+void RenderService_DrawText(pStr Text);

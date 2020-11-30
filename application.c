@@ -11,6 +11,7 @@ extern "C" {
 #include "render.h"
 #include "input.h"
 #include "test.h"
+#include "text.h"
 #include "time.h"
 
 typedef enum {
@@ -50,6 +51,7 @@ Bool Application_Initialize() {
     }
 
     TimeService_Initialize();
+    TextService_Initialize();
     RenderService_Initialize();
     InputService_Initialize();
 
@@ -128,6 +130,12 @@ void Application_Tick() {
     if (DeltaTime <= 0.0f) {
         DeltaTime = 0;
     }
+
+    char Buffer[1024] = {0};
+
+    sprintf(Buffer, "%.3f", TimeService_GetFramesPerSecond());
+
+    RenderService_DrawText(Buffer);
 
     RenderService_Tick();
 

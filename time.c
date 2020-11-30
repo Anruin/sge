@@ -68,6 +68,10 @@ U32 TimeService_GetDeltaTime() {
     return DeltaTime;
 }
 
+F32 TimeService_GetFramesPerSecond() {
+    return FramesPerSecond;
+}
+
 #pragma endregion
 
 #pragma region Private Function Definitions

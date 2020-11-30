@@ -12,3 +12,6 @@ void TimeService_Shutdown();
 
 /** Returns time passed from the last frame. */
 U32 TimeService_GetDeltaTime();
+
+/** Returns current average FPS rate. */
+F32 TimeService_GetFramesPerSecond();
