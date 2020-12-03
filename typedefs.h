@@ -12,7 +12,6 @@ typedef unsigned long long U64;
 typedef float F32;
 typedef double F64;
 typedef char* pStr;
-typedef const char* pcStr;
 
 typedef enum {
     False = 0,

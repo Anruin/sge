@@ -1,4 +1,5 @@
 #pragma once
+#include <SDL_ttf.h>
 #include <SDL_video.h>
 #include "typedefs.h"
 
@@ -15,3 +16,4 @@ void RenderService_Shutdown();
 SDL_Window* RenderService_GetSDLWindow();
 
 void RenderService_DrawText(pStr Text);
+void RenderService_RenderText(pStr Text, SDL_Color Color, I32 X, I32 Y, TTF_Font* Font);

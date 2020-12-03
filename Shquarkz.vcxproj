@@ -118,7 +118,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);SDL2.lib;SDL2main.lib;SDL2_ttf.lib;SDL2_image.lib;glew32.lib;glew32s.lib;cglm.lib;OpenGL32.lib</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);SDL2.lib;SDL2main.lib;SDL2_ttf.lib;SDL2_image.lib;glew32.lib;glew32s.lib;cglm.lib;OpenGL32.lib;Glu32.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>C:\Shquarkz\GL\lib\Release\x64;C:\Shquarkz\cglm\win\x64\Release</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
@@ -159,7 +159,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>C:\Shquarkz\GL\lib\Release\x64;C:\Shquarkz\cglm\win\x64\Release</AdditionalLibraryDirectories>
-      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);SDL2.lib;SDL2main.lib;glew32.lib;glew32s.lib;cglm.lib;OpenGL32.lib</AdditionalDependencies>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);SDL2.lib;SDL2main.lib;glew32.lib;glew32s.lib;cglm.lib;OpenGL32.lib;Glu32.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -190,6 +190,8 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="assets\fonts\ttf\DejaVuLGCSansMono.ttf" />
+    <Content Include="assets\shaders\font_fs.glsl" />
+    <Content Include="assets\shaders\font_vs.glsl" />
     <Content Include="assets\shaders\fs.glsl" />
     <Content Include="assets\shaders\vs.glsl" />
     <Content Include="assets\textures\texture.dds" />

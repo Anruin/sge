@@ -6,19 +6,23 @@
 #include <cglm/cglm.h>
 #include <SDL_log.h>
 #include <SDL_video.h>
+#include <SDL_ttf.h>
 
 #include "typedefs.h"
 #include "render.h"
-
-#include <SDL_ttf.h>
-
 #include "file.h"
 #include "text.h"
 
-#pragma region Defaults
-static const pStr DefaultVertexShaderPath = "assets/shaders/vs.glsl";
-static const pStr DefaultFragmentShaderPath = "assets/shaders/fs.glsl";
-static const pStr DefaultTexturePath = "assets/textures/texture.dds";
+#pragma region Settings
+#define FONT_PROGRAM_ID 0
+#define CHUNK_PROGRAM_ID 1
+
+static const pStr FontVertexShaderPath = "assets/shaders/font_vs.glsl";
+static const pStr FontFragmentShaderPath = "assets/shaders/font_fs.glsl";
+
+static const pStr ChunkVertexShaderPath = "assets/shaders/vs.glsl";
+static const pStr ChunkFragmentShaderPath = "assets/shaders/fs.glsl";
+static const pStr ChunkTexturePath = "assets/textures/texture.dds";
 
 static const pStr TextureUniformName = "texture";
 static const pStr TransformMatrixUniformName = "MVP";
@@ -54,10 +58,11 @@ SDL_Texture* TextTexture = NULL;
 /** Render service initialization flag. */
 Bool bInitialized;
 
-/** Shader program Id. */
-U32 ProgramId;
+/** Shader programs. */
+U32 ShaderPrograms[8] = {0};
+
 /** Texture Id. */
-U32 TextureId;
+U32 ChunkTextureId;
 
 /** Projection matrix. */
 mat4 Projection;
@@ -187,40 +192,46 @@ void RenderService_Initialize() {
     // Cull triangles which normals are not facing the camera.
     glEnable(GL_CULL_FACE);
 
-    ProgramId = RenderService_LoadShaders(DefaultVertexShaderPath, DefaultFragmentShaderPath);
-    if (ProgramId == 0) {
+    ShaderPrograms[FONT_PROGRAM_ID] = RenderService_LoadShaders(FontVertexShaderPath, FontFragmentShaderPath);
+    if (ShaderPrograms[FONT_PROGRAM_ID] == 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load shaders.");
         return;
     }
 
-    TextureId = RenderService_LoadTexture(DefaultTexturePath);
+    ShaderPrograms[CHUNK_PROGRAM_ID] = RenderService_LoadShaders(ChunkVertexShaderPath, ChunkFragmentShaderPath);
+    if (ShaderPrograms[CHUNK_PROGRAM_ID] == 0) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load shaders.");
+        return;
+    }
+
+    ChunkTextureId = RenderService_LoadTexture(ChunkTexturePath);
 
     glGenVertexArrays(1, &DefaultVertexArrayId);
     glBindVertexArray(DefaultVertexArrayId);
 
     // todo load chunks
 
-    glUseProgram(ProgramId);
+    glUseProgram(ShaderPrograms[CHUNK_PROGRAM_ID]);
 
-    ModelMatrixUniformId = glGetUniformLocation(ProgramId, ModelMatrixUniformName);
+    ModelMatrixUniformId = glGetUniformLocation(ShaderPrograms[CHUNK_PROGRAM_ID], ModelMatrixUniformName);
     if (ModelMatrixUniformId == -1) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load uniform by name: %s", TextureUniformName);
         return;
     }
 
-    TransformMatrixUniformId = glGetUniformLocation(ProgramId, TransformMatrixUniformName);
+    TransformMatrixUniformId = glGetUniformLocation(ShaderPrograms[CHUNK_PROGRAM_ID], TransformMatrixUniformName);
     if (TransformMatrixUniformId == -1) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load uniform by name: %s", TransformMatrixUniformName);
         return;
     }
 
-    CameraUniformId = glGetUniformLocation(ProgramId, CameraPositionUniformName);
+    CameraUniformId = glGetUniformLocation(ShaderPrograms[CHUNK_PROGRAM_ID], CameraPositionUniformName);
     if (CameraUniformId == -1) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load uniform by name: %s", CameraUniformId);
         return;
     }
 
-    TextureUniformId = glGetUniformLocation(ProgramId, TextureUniformName);
+    TextureUniformId = glGetUniformLocation(ShaderPrograms[CHUNK_PROGRAM_ID], TextureUniformName);
     if (TextureUniformId == -1) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load uniform by name: %s", TextureUniformName);
         return;
@@ -251,33 +262,19 @@ void RenderService_DrawText(const pStr Text) {
         return;
     }
 
-    SDL_Surface* TextSurface = TTF_RenderText_Solid(Font, Text, TextColor);
-    if (TextSurface == NULL) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create a text surface!");
-        return;
-    }
-
-    TextTexture = SDL_CreateTextureFromSurface(pSDL_Renderer, TextSurface);
-    if (TextTexture == NULL) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create a text texture!");
-        return;
-    }
-
-    SDL_FreeSurface(TextSurface);
-
-    if (SDL_QueryTexture(TextTexture, NULL, NULL, &TextRect.w, &TextRect.h) < 0) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to query a text texture!");
-    }
+    RenderService_RenderText(Text, TextColor, 0, 0, Font);
 }
 
-void RenderService_RenderText() {
-    // void RenderText(std::string message, SDL_Color color, int x, int y, TTF_Font* font) 
-    //
+void RenderService_RenderText(const pStr Text, const SDL_Color Color, const I32 X, const I32 Y, TTF_Font* Font) {
+    // todo: Rewrite to core profile using shaders.
     // glMatrixMode(GL_MODELVIEW);
     // glPushMatrix();
     // glLoadIdentity();
     //
-    // gluOrtho2D(0, gWindow->getWidth(),0,gWindow->getHeight()); 
+    // I32 Width, Height;
+    // SDL_GetWindowSize(pSDL_Window, &Width, &Height);
+    //
+    // gluOrtho2D(0, Width, 0, Height);
     // glMatrixMode(GL_PROJECTION);
     // glPushMatrix();
     // glLoadIdentity();
@@ -287,25 +284,27 @@ void RenderService_RenderText() {
     // glEnable(GL_BLEND);
     // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     //
-    // GLuint texture;
-    // glGenTextures(1, &texture);
-    // glBindTexture(GL_TEXTURE_2D, texture);
+    // U32 TextureId;
+    // glGenTextures(1, &TextureId);
+    // glBindTexture(GL_TEXTURE_2D, TextureId);
     //
-    // SDL_Surface * sFont = TTF_RenderText_Blended(font, message.c_str(), color);
-    //
+    // SDL_Surface* FontSurface = TTF_RenderText_Blended(Font, Text, Color);
     // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, sFont->w, sFont->h, 0, GL_BGRA, 
-    //               GL_UNSIGNED_BYTE, sFont->pixels);
+    // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, FontSurface->w, FontSurface->h, 0, GL_BGRA, GL_UNSIGNED_BYTE, FontSurface->pixels);
     //
-    // glBegin(GL_QUADS);
-    // {
-    //     glTexCoord2f(0,1); glVertex2f(x, y);
-    //     glTexCoord2f(1,1); glVertex2f(x + sFont->w, y);
-    //     glTexCoord2f(1,0); glVertex2f(x + sFont->w, y + sFont->h);
-    //     glTexCoord2f(0,0); glVertex2f(x, y + sFont->h);
-    // }
-    // glEnd();
+    // // glBegin(GL_QUADS);
+    // // {
+    // //     glTexCoord2f(0, 1);
+    // //     glVertex2f(X, Y);
+    // //     glTexCoord2f(1, 1);
+    // //     glVertex2f(X + FontSurface->w, Y);
+    // //     glTexCoord2f(1, 0);
+    // //     glVertex2f(X + FontSurface->w, Y + FontSurface->h);
+    // //     glTexCoord2f(0, 0);
+    // //     glVertex2f(X, Y + FontSurface->h);
+    // // }
+    // // glEnd();
     //
     // glDisable(GL_BLEND);
     // glDisable(GL_TEXTURE_2D);
@@ -316,9 +315,8 @@ void RenderService_RenderText() {
     // glMatrixMode(GL_PROJECTION);
     // glPopMatrix();
     //
-    // glDeleteTextures(1, &texture);
-    // SDL_FreeSurface(sFont);
-    //
+    // glDeleteTextures(1, &TextureId);
+    // SDL_FreeSurface(FontSurface);
 }
 
 void RenderService_Tick() {
@@ -330,7 +328,7 @@ void RenderService_Tick() {
     glClearColor(COLOR_BYTE(10), COLOR_BYTE(9), COLOR_BYTE(8), 0.f);
 
     /** Use the shader program. */
-    glUseProgram(ProgramId);
+    glUseProgram(ShaderPrograms[CHUNK_PROGRAM_ID]);
 
     /** Send information to the shader program. */
     glUniform3f(CameraUniformId, CameraPosition[0], CameraPosition[1], CameraPosition[2]);
@@ -342,9 +340,9 @@ void RenderService_Tick() {
     /** Set texture sampler to texture unit 0. */
     // glUniform1i(TextureUniformId, 0);
 
-    if (pSDL_Renderer != NULL && TextTexture != NULL) {
-        SDL_RenderCopy(pSDL_Renderer, TextTexture, NULL, &TextRect);
-    }
+    // if (pSDL_Renderer != NULL && TextTexture != NULL) {
+    // SDL_RenderCopy(pSDL_Renderer, TextTexture, NULL, &TextRect);
+    // }
 
     SDL_GL_SwapWindow(pSDL_Window);
 }
@@ -539,7 +537,7 @@ void RenderService_Cleanup() {
     // todo clean chunks
     glDeleteVertexArrays(1, &DefaultVertexArrayId);
     glBindVertexArray(0);
-    glDeleteProgram(ProgramId);
+    glDeleteProgram(ShaderPrograms[CHUNK_PROGRAM_ID]);
     glDeleteTextures(1, &TextureUniformId);
 }
 #pragma endregion
