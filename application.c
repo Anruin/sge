@@ -52,7 +52,7 @@ Bool Application_Initialize() {
 
     TimeService_Initialize();
     TextService_Initialize();
-    RenderService_Initialize();
+    Render_Initialize();
     InputService_Initialize();
 
     bInitialized = True;
@@ -97,7 +97,7 @@ void Application_RequestShutdown() {
 }
 
 void Application_Shutdown() {
-    RenderService_Shutdown();
+    Render_Shutdown();
     TimeService_Shutdown();
 
     SDL_QuitSubSystem(SDL_INIT_EVENTS);
@@ -112,7 +112,7 @@ void Application_AdvanceGameStep() {
     SDL_UserEvent UserEvent;
 
     UserEvent.timestamp = 0;
-    UserEvent.windowID = SDL_GetWindowID(RenderService_GetSDLWindow());
+    UserEvent.windowID = SDL_GetWindowID(Render_GetSDLWindow());
     UserEvent.type = SDL_USEREVENT;
     UserEvent.code = EVENT_RUN_GAME_LOOP;
     UserEvent.data1 = 0;
@@ -135,9 +135,9 @@ void Application_Tick() {
 
     sprintf(Buffer, "%.3f", TimeService_GetFramesPerSecond());
 
-    RenderService_Tick();
+    Render_Tick();
 
-    RenderService_DrawText(Buffer);
+    Render_DrawText(Buffer);
 
     Application_AdvanceGameStep();
 }

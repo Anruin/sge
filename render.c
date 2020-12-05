@@ -10,7 +10,7 @@
 
 #include "typedefs.h"
 #include "render.h"
-#include "file.h"
+#include "shader.h"
 #include "text.h"
 
 #pragma region Settings
@@ -98,14 +98,11 @@ U32 DefaultVertexArrayId;
 #pragma endregion
 
 #pragma region Private Function Declarations
-/** Loads and compiles shaders. */
-static U32 RenderService_LoadShaders(pStr VertexShaderPath, pStr FragmentShaderPath);
-
 /** Loads DDS texture. */
-static U32 RenderService_LoadTexture(pStr TexturePath);
+static U32 Render_LoadTexture(pStr TexturePath);
 
 /** Clears memory. */
-static void RenderService_Cleanup();
+static void Render_Cleanup();
 
 #if _DEBUG
 static void GLAPIENTRY Render_OpenGlMessageCallback(const GLenum Source, const GLenum Type, const GLuint Id, GLenum Severity, GLsizei Length, const GLchar* Message,
@@ -119,7 +116,7 @@ static void GLAPIENTRY Render_OpenGlMessageCallback(const GLenum Source, const G
 
 #pragma region Public Function Definitions
 
-void RenderService_Initialize() {
+void Render_Initialize() {
     // Initialize SDL video.
     if (SDL_Init(0) < 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to initialize SDL.");
@@ -192,19 +189,19 @@ void RenderService_Initialize() {
     // Cull triangles which normals are not facing the camera.
     glEnable(GL_CULL_FACE);
 
-    ShaderPrograms[FONT_PROGRAM_ID] = RenderService_LoadShaders(FontVertexShaderPath, FontFragmentShaderPath);
+    ShaderPrograms[FONT_PROGRAM_ID] = Shader_LoadProgram(FontVertexShaderPath, FontFragmentShaderPath, StrEmpty);
     if (ShaderPrograms[FONT_PROGRAM_ID] == 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load shaders.");
         return;
     }
 
-    ShaderPrograms[CHUNK_PROGRAM_ID] = RenderService_LoadShaders(ChunkVertexShaderPath, ChunkFragmentShaderPath);
+    ShaderPrograms[CHUNK_PROGRAM_ID] = Shader_LoadProgram(ChunkVertexShaderPath, ChunkFragmentShaderPath, StrEmpty);
     if (ShaderPrograms[CHUNK_PROGRAM_ID] == 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load shaders.");
         return;
     }
 
-    ChunkTextureId = RenderService_LoadTexture(ChunkTexturePath);
+    ChunkTextureId = Render_LoadTexture(ChunkTexturePath);
 
     glGenVertexArrays(1, &DefaultVertexArrayId);
     glBindVertexArray(DefaultVertexArrayId);
@@ -240,18 +237,18 @@ void RenderService_Initialize() {
     bInitialized = True;
 }
 
-void RenderService_Shutdown() {
+void Render_Shutdown() {
     SDL_DestroyWindow(pSDL_Window);
-    RenderService_Cleanup();
+    Render_Cleanup();
 
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
 }
 
-SDL_Window* RenderService_GetSDLWindow() {
+SDL_Window* Render_GetSDLWindow() {
     return pSDL_Window;
 }
 
-void RenderService_DrawText(const pStr Text) {
+void Render_DrawText(const pStr Text) {
     TextLine = Text;
 
     const SDL_Color TextColor = {1, 0, 0, 1};
@@ -262,7 +259,7 @@ void RenderService_DrawText(const pStr Text) {
         return;
     }
 
-    SDL_Texture* pTexture = RenderService_RenderTextToTexture(Text, TextColor, 0, 0, Font);
+    SDL_Texture* pTexture = Render_RenderTextToTexture(Text, TextColor, 0, 0, Font);
 
     U32 VAO, VBO;
     glGenVertexArrays(1, &VAO);
@@ -274,12 +271,12 @@ void RenderService_DrawText(const pStr Text) {
     glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(F32), 0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
-    
+
     F32 OutWidth, OutHeight;
     SDL_GL_BindTexture(pTexture, &OutWidth, &OutHeight);
 }
 
-SDL_Texture* RenderService_RenderTextToTexture(const pStr Text, const SDL_Color Color, const I32 X, const I32 Y, TTF_Font* Font) {
+SDL_Texture* Render_RenderTextToTexture(const pStr Text, const SDL_Color Color, const I32 X, const I32 Y, TTF_Font* Font) {
     // Render the text.
     SDL_Surface* pSurface = TTF_RenderText_Blended(Font, Text, Color);
     if (pSurface == NULL) {
@@ -298,7 +295,7 @@ SDL_Texture* RenderService_RenderTextToTexture(const pStr Text, const SDL_Color 
     return pTexture;
 }
 
-void RenderService_Tick() {
+void Render_Tick() {
     if (!bInitialized) {
         return;
     }
@@ -328,111 +325,7 @@ void RenderService_Tick() {
 #pragma endregion
 
 #pragma region Private Function Definitions
-U32 RenderService_LoadShaders(const pStr VertexShaderPath, const pStr FragmentShaderPath) {
-    // Compile vertex shader.
-    const GLuint VertexShaderId = glCreateShader(GL_VERTEX_SHADER);
-
-    U64 VertexShaderCodeLength;
-    const pStr VertexShaderCode = File_Read(VertexShaderPath, &VertexShaderCodeLength);
-    if (VertexShaderCode == NULL) {
-        printf("Can't load vertex shader");
-        return 0;
-    }
-
-    glShaderSource(VertexShaderId, 1, &VertexShaderCode, NULL);
-    glCompileShader(VertexShaderId);
-
-    I32 VertexShaderCompileStatus = GL_FALSE;
-    glGetShaderiv(VertexShaderId, GL_COMPILE_STATUS, &VertexShaderCompileStatus);
-
-    if (VertexShaderCompileStatus == GL_FALSE) {
-        I32 VertexShaderLogLength;
-        glGetShaderiv(VertexShaderId, GL_INFO_LOG_LENGTH, &VertexShaderLogLength);
-
-        if (VertexShaderLogLength > 0) {
-            const pStr VertexShaderLog = malloc(VertexShaderLogLength);
-            if (VertexShaderLog == NULL) {
-                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to allocate memory for vertex shader log");
-            }
-
-            glGetShaderInfoLog(VertexShaderId, VertexShaderLogLength, &VertexShaderLogLength, VertexShaderLog);
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", VertexShaderLog);
-
-            free(VertexShaderLog);
-        }
-
-        return False;
-    }
-
-    // Compile fragment shader.
-    const GLuint FragmentShaderId = glCreateShader(GL_FRAGMENT_SHADER);
-
-    U64 FragmentShaderCodeLength;
-    const pStr FragmentShaderCode = File_Read(FragmentShaderPath, &FragmentShaderCodeLength);
-    if (FragmentShaderCode == NULL) {
-        printf("Can't load fragment shader");
-        return 0;
-    }
-
-    glShaderSource(FragmentShaderId, 1, &FragmentShaderCode, NULL);
-    glCompileShader(FragmentShaderId);
-
-    I32 FragmentShaderCompileStatus = GL_FALSE;
-    glGetShaderiv(FragmentShaderId, GL_COMPILE_STATUS, &FragmentShaderCompileStatus);
-
-    if (FragmentShaderCompileStatus == GL_FALSE) {
-        I32 FragmentShaderLogLength;
-        glGetShaderiv(FragmentShaderId, GL_INFO_LOG_LENGTH, &FragmentShaderLogLength);
-
-        if (FragmentShaderLogLength > 0) {
-            const pStr FragmentShaderLog = malloc(FragmentShaderLogLength);
-            if (FragmentShaderLog == NULL) {
-                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to allocate memory for vertex shader log");
-            }
-
-            glGetShaderInfoLog(VertexShaderId, FragmentShaderLogLength, &FragmentShaderLogLength, FragmentShaderLog);
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", FragmentShaderLog);
-
-            free(FragmentShaderLog);
-        }
-
-        return 0;
-    }
-
-    const U32 _ProgramId = glCreateProgram();
-    glAttachShader(_ProgramId, VertexShaderId);
-    glAttachShader(_ProgramId, FragmentShaderId);
-    glLinkProgram(_ProgramId);
-
-    I32 ProgramLinkStatus = GL_FALSE;
-    glGetProgramiv(_ProgramId, GL_LINK_STATUS, &ProgramLinkStatus);
-
-    if (ProgramLinkStatus == GL_FALSE) {
-        I32 ProgramLinkLogLength;
-        glGetProgramiv(FragmentShaderId, GL_INFO_LOG_LENGTH, &ProgramLinkLogLength);
-
-        if (ProgramLinkLogLength > 0) {
-            const pStr ProgramLinkLog = malloc(ProgramLinkLogLength);
-            if (ProgramLinkLog == NULL) {
-                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to allocate memory for program link log");
-            }
-
-            glGetShaderInfoLog(VertexShaderId, ProgramLinkLogLength, &ProgramLinkLogLength, ProgramLinkLog);
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Program link log: %s", ProgramLinkLog);
-
-            free(ProgramLinkLog);
-        }
-
-        return 0;
-    }
-
-    glDeleteShader(VertexShaderId);
-    glDeleteShader(FragmentShaderId);
-
-    return _ProgramId;
-}
-
-U32 RenderService_LoadTexture(const pStr TexturePath) {
+U32 Render_LoadTexture(const pStr TexturePath) {
     U8 Header[124];
 
     /** Try to open the file. */
@@ -510,7 +403,7 @@ U32 RenderService_LoadTexture(const pStr TexturePath) {
     return TextureId;
 }
 
-void RenderService_Cleanup() {
+void Render_Cleanup() {
     SDL_GL_DeleteContext(pSDL_GlContext);
 
     // todo clean chunks
