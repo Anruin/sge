@@ -23,11 +23,11 @@ static U32 Ticks;
 #pragma endregion
 
 #pragma region Private Function Declarations
-static void TimeService_CalculateFps();
+static void Time_CalculateFps();
 #pragma endregion
 
 #pragma region Public Function Definitions
-Bool TimeService_Initialize() {
+Bool Time_Initialize() {
     if (bInitialized) {
         return bInitialized;
     }
@@ -49,33 +49,33 @@ Bool TimeService_Initialize() {
     return bInitialized;
 }
 
-U32 TimeService_Tick() {
+U32 Time_Tick() {
     Ticks = SDL_GetTicks();
     DeltaTime = Ticks - LastFrameTime;
 
-    TimeService_CalculateFps();
+    Time_CalculateFps();
 
     return DeltaTime;
 }
 
-void TimeService_Shutdown() {
+void Time_Shutdown() {
     if (bInitialized) {
         SDL_QuitSubSystem(SDL_INIT_TIMER);
     }
 }
 
-U32 TimeService_GetDeltaTime() {
+U32 Time_GetDeltaTime() {
     return DeltaTime;
 }
 
-F32 TimeService_GetFramesPerSecond() {
+F32 Time_GetFramesPerSecond() {
     return FramesPerSecond;
 }
 
 #pragma endregion
 
 #pragma region Private Function Definitions
-void TimeService_CalculateFps() {
+void Time_CalculateFps() {
     const U32 FrameTimesIndex = FrameCount % FRAME_NUMBER;
     FrameTimes[FrameTimesIndex] = DeltaTime;
     LastFrameTime = Ticks;

@@ -11,7 +11,7 @@
 #include "typedefs.h"
 #include "render.h"
 #include "shader.h"
-#include "text.h"
+#include "font.h"
 #include "texture.h"
 
 #pragma region Settings
@@ -246,7 +246,7 @@ void Render_DrawText(const pStr Text) {
 
     const SDL_Color TextColor = {1, 0, 0, 1};
 
-    TTF_Font* Font = TextService_GetFont();
+    TTF_Font* Font = Font_GetFont();
     if (Font == NULL) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to get a font!");
         return;

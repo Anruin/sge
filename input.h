@@ -29,7 +29,7 @@ typedef struct {
 } FInputAxisBinding;
 
 /** Initializes the input service. Configures key and mouse bindings. */
-void InputService_Initialize();
+void Input_Initialize();
 
 /** Processes key events received from the SDL. */
-void InputService_HandleEvent(const SDL_Event* Event);
+void Input_HandleEvent(const SDL_Event* Event);

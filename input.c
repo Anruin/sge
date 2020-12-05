@@ -22,7 +22,7 @@ static void DefaultApplicationExitHandler(const SDL_Event* Event);
 #pragma endregion
 
 #pragma region Public Function Definitions
-void InputService_Initialize() {
+void Input_Initialize() {
     SDL_SetRelativeMouseMode(SDL_TRUE);
 
     InputActionBindings[0] = (FInputActionBinding){SDLK_ESCAPE, DefaultApplicationExitHandler};
@@ -35,7 +35,7 @@ void InputService_Initialize() {
     InputAxisBindings[1] = (FInputAxisBinding){INPUT_AXIS_MOUSE_Y, DefaultAxisHandler};
 }
 
-void InputService_HandleEvent(const SDL_Event* Event) {
+void Input_HandleEvent(const SDL_Event* Event) {
     if (Event->type == SDL_KEYDOWN || Event->type == SDL_KEYUP || Event->type == SDL_MOUSEBUTTONDOWN || Event->type == SDL_MOUSEBUTTONUP) {
         const int BindingsCount = sizeof InputActionBindings / sizeof InputActionBindings[0];
         for (int Index = 0; Index < BindingsCount; Index++) {

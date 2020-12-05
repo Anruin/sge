@@ -2,16 +2,16 @@
 #include "typedefs.h"
 
 /** Initializes the time service. */
-Bool TimeService_Initialize();
+Bool Time_Initialize();
 
 /** Updates the time service frame returning the delta time for other services to use. */
-U32 TimeService_Tick();
+U32 Time_Tick();
 
 /** Clears and frees memory. */
-void TimeService_Shutdown();
+void Time_Shutdown();
 
 /** Returns time passed from the last frame. */
-U32 TimeService_GetDeltaTime();
+U32 Time_GetDeltaTime();
 
 /** Returns current average FPS rate. */
-F32 TimeService_GetFramesPerSecond();
+F32 Time_GetFramesPerSecond();

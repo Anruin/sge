@@ -180,11 +180,11 @@
     <ClInclude Include="render.h" />
     <ClInclude Include="input.h" />
     <ClInclude Include="physics.h" />
-    <ClCompile Include="text.c" />
+    <ClCompile Include="font.c" />
     <ClCompile Include="texture.c" />
     <ClCompile Include="time.c" />
     <ClInclude Include="shader.h" />
-    <ClInclude Include="text.h" />
+    <ClInclude Include="font.h" />
     <ClInclude Include="texture.h" />
     <ClInclude Include="typedefs.h" />
     <ClInclude Include="vector.h" />

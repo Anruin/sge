@@ -11,7 +11,7 @@ extern "C" {
 #include "render.h"
 #include "input.h"
 #include "test.h"
-#include "text.h"
+#include "font.h"
 #include "time.h"
 
 typedef enum {
@@ -50,10 +50,10 @@ Bool Application_Initialize() {
         return False;
     }
 
-    TimeService_Initialize();
-    TextService_Initialize();
+    Time_Initialize();
+    Font_Initialize();
     Render_Initialize();
-    InputService_Initialize();
+    Input_Initialize();
 
     bInitialized = True;
 
@@ -77,7 +77,7 @@ void Application_Run() {
         case SDL_MOUSEBUTTONDOWN:
         case SDL_MOUSEBUTTONUP:
         case SDL_MOUSEMOTION:
-            InputService_HandleEvent(&Event);
+            Input_HandleEvent(&Event);
             break;
 
         case SDL_QUIT:
@@ -98,7 +98,7 @@ void Application_RequestShutdown() {
 
 void Application_Shutdown() {
     Render_Shutdown();
-    TimeService_Shutdown();
+    Time_Shutdown();
 
     SDL_QuitSubSystem(SDL_INIT_EVENTS);
     SDL_Quit();
@@ -125,7 +125,7 @@ void Application_AdvanceGameStep() {
 }
 
 void Application_Tick() {
-    U32 DeltaTime = TimeService_Tick();
+    U32 DeltaTime = Time_Tick();
 
     if (DeltaTime <= 0.0f) {
         DeltaTime = 0;
@@ -133,7 +133,7 @@ void Application_Tick() {
 
     char Buffer[1024] = {0};
 
-    sprintf(Buffer, "%.3f", TimeService_GetFramesPerSecond());
+    sprintf(Buffer, "%.3f", Time_GetFramesPerSecond());
 
     Render_Tick();
 
