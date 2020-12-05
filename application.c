@@ -135,9 +135,9 @@ void Application_Tick() {
 
     sprintf(Buffer, "%.3f", TimeService_GetFramesPerSecond());
 
-    RenderService_DrawText(Buffer);
-
     RenderService_Tick();
+
+    RenderService_DrawText(Buffer);
 
     Application_AdvanceGameStep();
 }

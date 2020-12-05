@@ -168,6 +168,7 @@
     <ClCompile Include="render.c" />
     <ClCompile Include="input.c" />
     <ClCompile Include="main.c" />
+    <ClCompile Include="shader.c" />
     <ClCompile Include="test.c" />
   </ItemGroup>
   <ItemGroup>
@@ -181,6 +182,7 @@
     <ClInclude Include="physics.h" />
     <ClCompile Include="text.c" />
     <ClCompile Include="time.c" />
+    <ClInclude Include="shader.h" />
     <ClInclude Include="text.h" />
     <ClInclude Include="typedefs.h" />
     <ClInclude Include="vector.h" />

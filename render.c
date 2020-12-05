@@ -262,61 +262,40 @@ void RenderService_DrawText(const pStr Text) {
         return;
     }
 
-    RenderService_RenderText(Text, TextColor, 0, 0, Font);
+    SDL_Texture* pTexture = RenderService_RenderTextToTexture(Text, TextColor, 0, 0, Font);
+
+    U32 VAO, VBO;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glBindVertexArray(VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(F32) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(F32), 0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+    
+    F32 OutWidth, OutHeight;
+    SDL_GL_BindTexture(pTexture, &OutWidth, &OutHeight);
 }
 
-void RenderService_RenderText(const pStr Text, const SDL_Color Color, const I32 X, const I32 Y, TTF_Font* Font) {
-    // todo: Rewrite to core profile using shaders.
-    // glMatrixMode(GL_MODELVIEW);
-    // glPushMatrix();
-    // glLoadIdentity();
-    //
-    // I32 Width, Height;
-    // SDL_GetWindowSize(pSDL_Window, &Width, &Height);
-    //
-    // gluOrtho2D(0, Width, 0, Height);
-    // glMatrixMode(GL_PROJECTION);
-    // glPushMatrix();
-    // glLoadIdentity();
-    //
-    // glDisable(GL_DEPTH_TEST);
-    // glEnable(GL_TEXTURE_2D);
-    // glEnable(GL_BLEND);
-    // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    //
-    // U32 TextureId;
-    // glGenTextures(1, &TextureId);
-    // glBindTexture(GL_TEXTURE_2D, TextureId);
-    //
-    // SDL_Surface* FontSurface = TTF_RenderText_Blended(Font, Text, Color);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, FontSurface->w, FontSurface->h, 0, GL_BGRA, GL_UNSIGNED_BYTE, FontSurface->pixels);
-    //
-    // // glBegin(GL_QUADS);
-    // // {
-    // //     glTexCoord2f(0, 1);
-    // //     glVertex2f(X, Y);
-    // //     glTexCoord2f(1, 1);
-    // //     glVertex2f(X + FontSurface->w, Y);
-    // //     glTexCoord2f(1, 0);
-    // //     glVertex2f(X + FontSurface->w, Y + FontSurface->h);
-    // //     glTexCoord2f(0, 0);
-    // //     glVertex2f(X, Y + FontSurface->h);
-    // // }
-    // // glEnd();
-    //
-    // glDisable(GL_BLEND);
-    // glDisable(GL_TEXTURE_2D);
-    // glEnable(GL_DEPTH_TEST);
-    //
-    // glMatrixMode(GL_PROJECTION);
-    // glPopMatrix();
-    // glMatrixMode(GL_PROJECTION);
-    // glPopMatrix();
-    //
-    // glDeleteTextures(1, &TextureId);
-    // SDL_FreeSurface(FontSurface);
+SDL_Texture* RenderService_RenderTextToTexture(const pStr Text, const SDL_Color Color, const I32 X, const I32 Y, TTF_Font* Font) {
+    // Render the text.
+    SDL_Surface* pSurface = TTF_RenderText_Blended(Font, Text, Color);
+    if (pSurface == NULL) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "TTF_RenderText");
+        return NULL;
+    }
+
+    // Create a texture.
+    SDL_Texture* pTexture = SDL_CreateTextureFromSurface(pSDL_Renderer, pSurface);
+    if (pTexture == NULL) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "CreateTexture");
+    }
+
+    SDL_FreeSurface(pSurface);
+
+    return pTexture;
 }
 
 void RenderService_Tick() {

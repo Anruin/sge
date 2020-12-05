@@ -13,6 +13,9 @@ typedef float F32;
 typedef double F64;
 typedef char* pStr;
 
+static const pStr StrEmpty = "";
+static const U32 InvalidId = 0xFFFFFFFF;
+
 typedef enum {
     False = 0,
     True
