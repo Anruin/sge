@@ -5,31 +5,72 @@
 
 #include "file.h"
 
-static void Shader_CheckCompileErrors(const U32 Id, const pStr ShaderType) {
-    I32 Success;
-    I8 InfoLog[1024];
+#define SHADER_LOG_LENGTH 1024
 
-    glGetShaderiv(Id, GL_COMPILE_STATUS, &Success);
-    if (!Success) {
-        glGetShaderInfoLog(Id, 1024, NULL, InfoLog);
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s Shader Compilation Error:\n%s\n\n", ShaderType, InfoLog);
+static pStr Shader_GetShaderTypeString(const EShaderType ShaderType) {
+    static const pStr ShaderTypeUnknown = "Unknown";
+    static const pStr ShaderTypeVertex = "Vertex";
+    static const pStr ShaderTypeFragment = "Fragment";
+    static const pStr ShaderTypeGeometry = "Geometry";
+
+    switch (ShaderType) {
+    case Shader_Vertex:
+        return ShaderTypeVertex;
+    case Shader_Fragment:
+        return ShaderTypeFragment;
+    case Shader_Geometry:
+        return ShaderTypeGeometry;
+    default:
+        return ShaderTypeUnknown;
     }
 }
 
-static void Shader_CheckLinkErrors(const U32 Id) {
-    I32 Success;
-    I8 InfoLog[1024];
-    glGetProgramiv(Id, GL_LINK_STATUS, &Success);
-    if (!Success) {
-        glGetProgramInfoLog(Id, 1024, NULL, InfoLog);
+static Bool Shader_CheckCompileSucceeded(const U32 Id, const EShaderType ShaderType) {
+    I32 CompileStatus = False;
+    I8 InfoLog[SHADER_LOG_LENGTH];
+
+    glGetShaderiv(Id, GL_COMPILE_STATUS, &CompileStatus);
+
+    if (!CompileStatus) {
+        glGetShaderInfoLog(Id, SHADER_LOG_LENGTH, NULL, InfoLog);
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s Shader Compilation Error:\n%s\n\n", Shader_GetShaderTypeString(ShaderType), InfoLog);
+    }
+
+    return CompileStatus;
+}
+
+static Bool Shader_CheckLinkSucceeded(const U32 Id) {
+    I32 LinkStatus;
+    I8 InfoLog[SHADER_LOG_LENGTH];
+
+    glGetProgramiv(Id, GL_LINK_STATUS, &LinkStatus);
+
+    if (!LinkStatus) {
+        glGetProgramInfoLog(Id, SHADER_LOG_LENGTH, NULL, InfoLog);
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Shader Program Link Error:\n%s\n\n", InfoLog);
     }
+
+    return LinkStatus;
 }
 
-U32 Shader_LoadShader(const pStr ShaderPath) {
-    const U32 Id = glCreateShader(GL_VERTEX_SHADER);
+U32 Shader_LoadShader(const pStr ShaderPath, const EShaderType ShaderType) {
+    U32 Id;
 
-    U64 CodeLength;
+    switch (ShaderType) {
+    case Shader_Vertex:
+        Id = glCreateShader(GL_VERTEX_SHADER);
+        break;
+    case Shader_Fragment:
+        Id = glCreateShader(GL_FRAGMENT_SHADER);
+        break;
+    case Shader_Geometry:
+        Id = glCreateShader(GL_GEOMETRY_SHADER);
+        break;
+    default:
+        return InvalidId;
+    }
+
+    I64 CodeLength;
     const pStr Code = File_ReadText(ShaderPath, &CodeLength);
     if (Code == NULL) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load shader code");
@@ -42,27 +83,13 @@ U32 Shader_LoadShader(const pStr ShaderPath) {
     I32 CompileStatus = GL_FALSE;
     glGetShaderiv(Id, GL_COMPILE_STATUS, &CompileStatus);
 
-    if (CompileStatus == GL_FALSE) {
-        I32 LogLength;
-        glGetShaderiv(Id, GL_INFO_LOG_LENGTH, &LogLength);
-
-        if (LogLength > 0) {
-            const pStr InfoLog = malloc(LogLength);
-            if (InfoLog == NULL) {
-                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to allocate memory for shader info log");
-                return InvalidId;
-            }
-
-            glGetShaderInfoLog(Id, LogLength, &LogLength, InfoLog);
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s", InfoLog);
-
-            free(InfoLog);
-        }
-
-        return InvalidId;
+    if (Shader_CheckCompileSucceeded(Id, ShaderType)) {
+        return Id;
     }
 
-    return Id;
+    glDeleteShader(Id);
+
+    return InvalidId;
 }
 
 U32 Shader_LoadProgram(const pStr VertexShaderPath, const pStr FragmentShaderPath, const pStr GeometryShaderPath) {
@@ -82,14 +109,14 @@ U32 Shader_LoadProgram(const pStr VertexShaderPath, const pStr FragmentShaderPat
     }
 
 #pragma region Vertex Shader
-    const U32 VertexShaderId = Shader_LoadShader(VertexShaderPath);
+    const U32 VertexShaderId = Shader_LoadShader(VertexShaderPath, Shader_Vertex);
     if (VertexShaderId == InvalidId) {
         return InvalidId;
     }
 #pragma endregion
 
 #pragma region Fragment Shader
-    const U32 FragmentShaderId = Shader_LoadShader(FragmentShaderPath);
+    const U32 FragmentShaderId = Shader_LoadShader(FragmentShaderPath, Shader_Fragment);
     if (FragmentShaderId == InvalidId) {
         return InvalidId;
     }
@@ -98,7 +125,7 @@ U32 Shader_LoadProgram(const pStr VertexShaderPath, const pStr FragmentShaderPat
 #pragma region Geometry Shader
     U32 GeometryShaderId = InvalidId;
     if (bCompilingGeometryShader) {
-        GeometryShaderId = Shader_LoadShader(GeometryShaderPath);
+        GeometryShaderId = Shader_LoadShader(GeometryShaderPath, Shader_Geometry);
         if (GeometryShaderId == InvalidId) {
             return InvalidId;
         }
@@ -112,61 +139,28 @@ U32 Shader_LoadProgram(const pStr VertexShaderPath, const pStr FragmentShaderPat
     if (bCompilingGeometryShader) {
         glAttachShader(Id, GeometryShaderId);
     }
-    
+
     glLinkProgram(Id);
 
-    I32 LinkStatus = GL_FALSE;
-    glGetProgramiv(Id, GL_LINK_STATUS, &LinkStatus);
-
-    if (LinkStatus == GL_FALSE) {
-        I32 LogLength;
-        glGetProgramiv(FragmentShaderId, GL_INFO_LOG_LENGTH, &LogLength);
-
-        if (LogLength > 0) {
-            const pStr InfoLog = malloc(LogLength);
-            if (InfoLog == NULL) {
-                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Unable to allocate memory for program link log");
-                
-                if (VertexShaderId != InvalidId) {
-                    glDeleteShader(VertexShaderId);
-                }
-
-                if (FragmentShaderId != InvalidId) {
-                    glDeleteShader(FragmentShaderId);
-                }
-                
-                if (bCompilingGeometryShader && GeometryShaderId != InvalidId) {
-                    glDeleteShader(GeometryShaderId);
-                }
-
-                return InvalidId;
-            }
-
-            glGetShaderInfoLog(VertexShaderId, LogLength, &LogLength, InfoLog);
-            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Program link log: %s", InfoLog);
-
-            free(InfoLog);
-        }
-
-        if (VertexShaderId != InvalidId) {
-            glDeleteShader(VertexShaderId);
-        }
-
-        if (FragmentShaderId != InvalidId) {
-            glDeleteShader(FragmentShaderId);
-        }
-                
-        if (bCompilingGeometryShader && GeometryShaderId != InvalidId) {
-            glDeleteShader(GeometryShaderId);
-        }
-
-        return InvalidId;
+    if (VertexShaderId != InvalidId) {
+        glDeleteShader(VertexShaderId);
     }
 
-    glDeleteShader(VertexShaderId);
-    glDeleteShader(FragmentShaderId);
+    if (FragmentShaderId != InvalidId) {
+        glDeleteShader(FragmentShaderId);
+    }
 
-    return Id;
+    if (bCompilingGeometryShader && GeometryShaderId != InvalidId) {
+        glDeleteShader(GeometryShaderId);
+    }
+
+    if (Shader_CheckLinkSucceeded(Id)) {
+        return Id;
+    }
+
+    glDeleteProgram(Id);
+
+    return InvalidId;
 }
 
 void Shader_Use(const U32 Id) {

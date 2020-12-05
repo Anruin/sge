@@ -3,10 +3,12 @@
 
 #include "typedefs.h"
 
-static const pStr ShaderTypeUnknown = "Unknown";
-static const pStr ShaderTypeVertex = "Vertex";
-static const pStr ShaderTypeFragment = "Fragment";
-static const pStr ShaderTypeGeometry = "Geometry";
+typedef enum {
+    Shader_Unknown = -1,
+    Shader_Vertex,
+    Shader_Fragment,
+    Shader_Geometry
+} EShaderType;
 
 /** Loads and compiles shaders. */
 U32 Shader_LoadProgram(pStr VertexShaderPath, pStr FragmentShaderPath, pStr GeometryShaderPath);
