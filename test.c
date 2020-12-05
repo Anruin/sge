@@ -16,6 +16,6 @@ void Test_Run() {
 
     // Test file read.
     U64 FileLength;
-    File_Read("./assets/shaders/vs.glsl", &FileLength);
+    File_ReadText("./assets/shaders/vs.glsl", &FileLength);
     printf("%llu\n", FileLength);
 }

@@ -1,4 +1,7 @@
 ﻿#include "file.h"
+
+#include <SDL_rwops.h>
+
 #include "typedefs.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,7 +11,7 @@
 #include <sys/stat.h>
 #endif
 
-long File_GetSize(const pStr FileName) {
+I64 File_GetSize(const pStr FileName) {
     struct stat Stat;
 
     if (stat(FileName, &Stat) != 0) {
@@ -20,39 +23,34 @@ long File_GetSize(const pStr FileName) {
     return Stat.st_size;
 }
 
-pStr File_Read(const pStr FileName, U64* OutLength) {
-#if OS_WINDOWS
-
-    const __int64 FileSize = File_GetSize(FileName);
-
-    if (FileSize == -1) {
-        fprintf(stderr, "File: %s\n", FileName);
-        perror("Can't get file size");
+pStr File_ReadText(const pStr Path, I64* OutLength) {
+    SDL_RWops* Context = SDL_RWFromFile(Path, "rb");
+    if (Context == NULL) {
         return NULL;
     }
 
-    const pStr Buffer = malloc(FileSize);
-    if (Buffer == NULL) {
-        perror("Can't allocate buffer");
+    const I64 Size = SDL_RWsize(Context);
+    const pStr Result = (pStr)malloc(Size + 1);
+
+    I64 TotalBytesRead = 0, BytesRead = 1;
+    pStr Buffer = Result;
+    while (TotalBytesRead < Size && BytesRead != 0) {
+        BytesRead = SDL_RWread(Context, Buffer, 1, (Size - TotalBytesRead));
+        TotalBytesRead += BytesRead;
+        Buffer += BytesRead;
+    }
+
+    SDL_RWclose(Context);
+    if (TotalBytesRead != Size) {
+        free(Result);
         return NULL;
     }
 
-    FILE* pFile = fopen(FileName, "rb");
-    fseek(pFile, 0, SEEK_SET); /* same as rewind(f); */
-
-    fread(Buffer, 1, FileSize, pFile);
-    fclose(pFile);
-
-    Buffer[FileSize] = '\0';
+    Result[TotalBytesRead] = '\0';
 
     if (OutLength != NULL) {
-        *OutLength = FileSize;
+        *OutLength = TotalBytesRead;
     }
 
-    return Buffer;
-
-#else
-    perror("Not implemented");
-    return NULL;
-#endif
+    return Result;
 }

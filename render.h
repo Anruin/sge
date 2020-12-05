@@ -16,4 +16,5 @@ void Render_Shutdown();
 SDL_Window* Render_GetSDLWindow();
 
 void Render_DrawText(pStr Text);
+
 SDL_Texture* Render_RenderTextToTexture(pStr Text, SDL_Color Color, I32 X, I32 Y, TTF_Font* Font);

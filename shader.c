@@ -30,7 +30,7 @@ U32 Shader_LoadShader(const pStr ShaderPath) {
     const U32 Id = glCreateShader(GL_VERTEX_SHADER);
 
     U64 CodeLength;
-    const pStr Code = File_Read(ShaderPath, &CodeLength);
+    const pStr Code = File_ReadText(ShaderPath, &CodeLength);
     if (Code == NULL) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load shader code");
         return InvalidId;

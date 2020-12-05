@@ -12,10 +12,11 @@
 #include "render.h"
 #include "shader.h"
 #include "text.h"
+#include "texture.h"
 
 #pragma region Settings
-#define FONT_PROGRAM_ID 0
-#define CHUNK_PROGRAM_ID 1
+#define SHADER_PROGRAM_ID_FONT 0
+#define SHADER_PROGRAM_ID_CHUNK 1
 
 static const pStr FontVertexShaderPath = "assets/shaders/font_vs.glsl";
 static const pStr FontFragmentShaderPath = "assets/shaders/font_fs.glsl";
@@ -32,11 +33,6 @@ static const pStr CameraPositionUniformName = "eyePosition";
 static const char* DefaultWindowTitle = "Shquarkz Game Engine";
 const int DefaultWindowWidth = 1140;
 const int DefaultWindowHeight = 855;
-
-/** Four-character codes. */
-#define FOURCC_DXT1 0x31545844
-#define FOURCC_DXT3 0x33545844
-#define FOURCC_DXT5 0x35545844
 
 #pragma endregion
 
@@ -98,9 +94,6 @@ U32 DefaultVertexArrayId;
 #pragma endregion
 
 #pragma region Private Function Declarations
-/** Loads DDS texture. */
-static U32 Render_LoadTexture(pStr TexturePath);
-
 /** Clears memory. */
 static void Render_Cleanup();
 
@@ -189,46 +182,46 @@ void Render_Initialize() {
     // Cull triangles which normals are not facing the camera.
     glEnable(GL_CULL_FACE);
 
-    ShaderPrograms[FONT_PROGRAM_ID] = Shader_LoadProgram(FontVertexShaderPath, FontFragmentShaderPath, StrEmpty);
-    if (ShaderPrograms[FONT_PROGRAM_ID] == 0) {
+    ShaderPrograms[SHADER_PROGRAM_ID_FONT] = Shader_LoadProgram(FontVertexShaderPath, FontFragmentShaderPath, StrEmpty);
+    if (ShaderPrograms[SHADER_PROGRAM_ID_FONT] == 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load shaders.");
         return;
     }
 
-    ShaderPrograms[CHUNK_PROGRAM_ID] = Shader_LoadProgram(ChunkVertexShaderPath, ChunkFragmentShaderPath, StrEmpty);
-    if (ShaderPrograms[CHUNK_PROGRAM_ID] == 0) {
+    ShaderPrograms[SHADER_PROGRAM_ID_CHUNK] = Shader_LoadProgram(ChunkVertexShaderPath, ChunkFragmentShaderPath, StrEmpty);
+    if (ShaderPrograms[SHADER_PROGRAM_ID_CHUNK] == 0) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load shaders.");
         return;
     }
 
-    ChunkTextureId = Render_LoadTexture(ChunkTexturePath);
+    ChunkTextureId = Texture_LoadDDS(ChunkTexturePath);
 
     glGenVertexArrays(1, &DefaultVertexArrayId);
     glBindVertexArray(DefaultVertexArrayId);
 
     // todo load chunks
 
-    glUseProgram(ShaderPrograms[CHUNK_PROGRAM_ID]);
+    glUseProgram(ShaderPrograms[SHADER_PROGRAM_ID_CHUNK]);
 
-    ModelMatrixUniformId = glGetUniformLocation(ShaderPrograms[CHUNK_PROGRAM_ID], ModelMatrixUniformName);
+    ModelMatrixUniformId = glGetUniformLocation(ShaderPrograms[SHADER_PROGRAM_ID_CHUNK], ModelMatrixUniformName);
     if (ModelMatrixUniformId == -1) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load uniform by name: %s", TextureUniformName);
         return;
     }
 
-    TransformMatrixUniformId = glGetUniformLocation(ShaderPrograms[CHUNK_PROGRAM_ID], TransformMatrixUniformName);
+    TransformMatrixUniformId = glGetUniformLocation(ShaderPrograms[SHADER_PROGRAM_ID_CHUNK], TransformMatrixUniformName);
     if (TransformMatrixUniformId == -1) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load uniform by name: %s", TransformMatrixUniformName);
         return;
     }
 
-    CameraUniformId = glGetUniformLocation(ShaderPrograms[CHUNK_PROGRAM_ID], CameraPositionUniformName);
+    CameraUniformId = glGetUniformLocation(ShaderPrograms[SHADER_PROGRAM_ID_CHUNK], CameraPositionUniformName);
     if (CameraUniformId == -1) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load uniform by name: %s", CameraUniformId);
         return;
     }
 
-    TextureUniformId = glGetUniformLocation(ShaderPrograms[CHUNK_PROGRAM_ID], TextureUniformName);
+    TextureUniformId = glGetUniformLocation(ShaderPrograms[SHADER_PROGRAM_ID_CHUNK], TextureUniformName);
     if (TextureUniformId == -1) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load uniform by name: %s", TextureUniformName);
         return;
@@ -304,7 +297,7 @@ void Render_Tick() {
     glClearColor(COLOR_BYTE(10), COLOR_BYTE(9), COLOR_BYTE(8), 0.f);
 
     /** Use the shader program. */
-    glUseProgram(ShaderPrograms[CHUNK_PROGRAM_ID]);
+    glUseProgram(ShaderPrograms[SHADER_PROGRAM_ID_CHUNK]);
 
     /** Send information to the shader program. */
     glUniform3f(CameraUniformId, CameraPosition[0], CameraPosition[1], CameraPosition[2]);
@@ -325,91 +318,14 @@ void Render_Tick() {
 #pragma endregion
 
 #pragma region Private Function Definitions
-U32 Render_LoadTexture(const pStr TexturePath) {
-    U8 Header[124];
-
-    /** Try to open the file. */
-    FILE* pFile = fopen(TexturePath, "rb");
-    if (pFile == NULL) {
-        printf("Unable to open file %s\n", TexturePath);
-        return 0;
-    }
-
-    /** Check the file type. */
-    char FileType[4];
-    fread(FileType, 1, 4, pFile);
-    if (strncmp(FileType, "DDS ", 4) != 0) {
-        printf("Bad file type %s, DDS expected", FileType);
-        fclose(pFile);
-        return 0;
-    }
-
-    /** Get the surface header. */
-    fread(&Header, 124, 1, pFile);
-
-    U32 Height = *(U32*)&Header[8];
-    U32 Width = *(U32*)&Header[12];
-    const U32 LinearSize = *(U32*)&Header[16];
-    const U32 MipMapCount = *(U32*)&Header[24];
-    const U32 FourCC = *(U32*)&Header[80];
-
-    const U32 BufferSize = MipMapCount > 1 ? LinearSize * 2 : LinearSize;
-    U8* Buffer = (U8*)malloc(BufferSize * sizeof(U8));
-    fread(Buffer, 1, BufferSize, pFile);
-
-    fclose(pFile);
-
-    U32 Format;
-    switch (FourCC) {
-    case FOURCC_DXT1:
-        Format = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
-        break;
-    case FOURCC_DXT3:
-        Format = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
-        break;
-    case FOURCC_DXT5:
-        Format = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
-        break;
-    default:
-        printf("Bad file code %#x, expected DXT1, DXT3 or DXT5", FourCC);
-        free(Buffer);
-        return 0;
-    }
-
-    // Create an OpenGL texture.
-    GLuint TextureId;
-    glGenTextures(1, &TextureId);
-
-    // Bind the new texture so that all next texture handling functions will modify this one. 
-    glBindTexture(GL_TEXTURE_2D, TextureId);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-    const U32 BlockSize = (Format == GL_COMPRESSED_RGBA_S3TC_DXT1_EXT) ? 8 : 16;
-    U32 Offset = 0;
-
-    // Load mipmaps.
-    for (U32 Level = 0; Level < MipMapCount && (Width || Height); ++Level) {
-        const U32 Size = (Width + 3) / 4 * ((Height + 3) / 4) * BlockSize;
-
-        Offset += Size;
-        Width /= 2;
-        Height /= 2;
-    }
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
-    free(Buffer);
-
-    return TextureId;
-}
-
 void Render_Cleanup() {
     SDL_GL_DeleteContext(pSDL_GlContext);
 
     // todo clean chunks
     glDeleteVertexArrays(1, &DefaultVertexArrayId);
     glBindVertexArray(0);
-    glDeleteProgram(ShaderPrograms[CHUNK_PROGRAM_ID]);
+    glDeleteProgram(ShaderPrograms[SHADER_PROGRAM_ID_FONT]);
+    glDeleteProgram(ShaderPrograms[SHADER_PROGRAM_ID_CHUNK]);
     glDeleteTextures(1, &TextureUniformId);
 }
 #pragma endregion
