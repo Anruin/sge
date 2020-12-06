@@ -1,11 +1,10 @@
 ﻿#version 330 core
-layout (location = 0) in vec4 vertex; // <vec2 pos, vec2 tex>
-out vec2 TexCoords;
+layout (location = 0) in vec2 inPosition;
+layout (location = 1) in vec2 inTextureCoord;
+out vec2 vTextureCoords;
+uniform mat4 transform;
 
-uniform mat4 projection;
-
-void main()
-{
-    gl_Position = projection * vec4(vertex.xy, 0.0, 1.0);
-    TexCoords = vertex.zw;
-}  
+void main() {
+    gl_Position = transform * vec4(inPosition, 0.0, 1.0);
+    vTextureCoords = inTextureCoord;
+}

@@ -169,6 +169,7 @@
     <ClCompile Include="input.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="shader.c" />
+    <ClCompile Include="shape.c" />
     <ClCompile Include="test.c" />
   </ItemGroup>
   <ItemGroup>
@@ -176,6 +177,7 @@
     <ClInclude Include="block.h" />
     <ClInclude Include="cell.h" />
     <ClInclude Include="chunk.h" />
+    <ClInclude Include="containers\vector.h" />
     <ClInclude Include="file.h" />
     <ClInclude Include="render.h" />
     <ClInclude Include="input.h" />
@@ -185,9 +187,9 @@
     <ClCompile Include="time.c" />
     <ClInclude Include="shader.h" />
     <ClInclude Include="font.h" />
+    <ClInclude Include="shape.h" />
     <ClInclude Include="texture.h" />
     <ClInclude Include="typedefs.h" />
-    <ClInclude Include="vector.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="test.h" />
@@ -197,6 +199,8 @@
     <Content Include="assets\shaders\font_fs.glsl" />
     <Content Include="assets\shaders\font_vs.glsl" />
     <Content Include="assets\shaders\fs.glsl" />
+    <Content Include="assets\shaders\triangle_fs.glsl" />
+    <Content Include="assets\shaders\triangle_vs.glsl" />
     <Content Include="assets\shaders\vs.glsl" />
     <Content Include="assets\textures\texture.dds" />
     <ClInclude Include="time.h" />

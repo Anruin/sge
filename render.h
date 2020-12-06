@@ -12,7 +12,7 @@ void Render_Tick();
 /** Clears the initialized buffers, shaders, textures and frees memory. */
 void Render_Shutdown();
 
-/** Returns the SDL window. */
+/** SDL window getter. */
 SDL_Window* Render_GetSDLWindow();
 
 void Render_DrawText(pStr Text);

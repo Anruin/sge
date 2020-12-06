@@ -130,14 +130,8 @@ void Application_Tick() {
     if (DeltaTime <= 0.0f) {
         DeltaTime = 0;
     }
-
-    char Buffer[1024] = {0};
-
-    sprintf(Buffer, "%.3f", Time_GetFramesPerSecond());
-
+    
     Render_Tick();
-
-    Render_DrawText(Buffer);
 
     Application_AdvanceGameStep();
 }

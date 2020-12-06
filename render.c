@@ -13,6 +13,7 @@
 #include "shader.h"
 #include "font.h"
 #include "texture.h"
+#include "time.h"
 
 #pragma region Settings
 #define SHADER_PROGRAM_ID_FONT 0
@@ -122,11 +123,12 @@ void Render_Initialize() {
     }
 
     // Configure OpenGL.
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+    SDL_GL_SetAttribute(SDL_GL_ACCELERATED_VISUAL, 1);
 
     // Create SDL window.
     const U32 ContextFlags = SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL;
@@ -183,13 +185,13 @@ void Render_Initialize() {
     glEnable(GL_CULL_FACE);
 
     ShaderPrograms[SHADER_PROGRAM_ID_FONT] = Shader_LoadProgram(FontVertexShaderPath, FontFragmentShaderPath, StrEmpty);
-    if (ShaderPrograms[SHADER_PROGRAM_ID_FONT] == 0) {
+    if (ShaderPrograms[SHADER_PROGRAM_ID_FONT] == InvalidId) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load shaders.");
         return;
     }
 
     ShaderPrograms[SHADER_PROGRAM_ID_CHUNK] = Shader_LoadProgram(ChunkVertexShaderPath, ChunkFragmentShaderPath, StrEmpty);
-    if (ShaderPrograms[SHADER_PROGRAM_ID_CHUNK] == 0) {
+    if (ShaderPrograms[SHADER_PROGRAM_ID_CHUNK] == InvalidId) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to load shaders.");
         return;
     }
@@ -288,19 +290,41 @@ SDL_Texture* Render_RenderTextToTexture(const pStr Text, const SDL_Color Color, 
     return pTexture;
 }
 
-void Render_Tick() {
+void Render_Scene() {
     if (!bInitialized) {
         return;
     }
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glClearColor(COLOR_BYTE(10), COLOR_BYTE(9), COLOR_BYTE(8), 0.f);
-
     /** Use the shader program. */
     glUseProgram(ShaderPrograms[SHADER_PROGRAM_ID_CHUNK]);
 
+    // // 0. copy our vertices array in a buffer for OpenGL to use
+    // glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    // glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    // // 1. then set the vertex attributes pointers
+    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    // glEnableVertexAttribArray(0);  
+    // // 2. use our shader program when we want to render an object
+    // glUseProgram(shaderProgram);
+    // // 3. now draw the object 
+    // someOpenGLFunctionThatDrawsOurTriangle();   
+
+    float TriangleVertices[] = {
+        -0.5f, -0.5f, 0.0f,
+        0.5f, -0.5f, 0.0f,
+        0.0f, 0.5f, 0.0f
+    };
+
+    U32 VertexBuffer;
+    glGenBuffers(1, &VertexBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, VertexBuffer);
+    glBufferData(GL_ARRAY_BUFFER, sizeof TriangleVertices, TriangleVertices, GL_STATIC_DRAW);
+
+    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof F32, 0);
+    // glEnableVertexAttribArray(0);
+
     /** Send information to the shader program. */
-    glUniform3f(CameraUniformId, CameraPosition[0], CameraPosition[1], CameraPosition[2]);
+    // glUniform3f(CameraUniformId, CameraPosition[0], CameraPosition[1], CameraPosition[2]);
 
     /** Bind texture to the texture unit 0. */
     // glActiveTexture(GL_TEXTURE0);
@@ -312,6 +336,30 @@ void Render_Tick() {
     // if (pSDL_Renderer != NULL && TextTexture != NULL) {
     // SDL_RenderCopy(pSDL_Renderer, TextTexture, NULL, &TextRect);
     // }
+}
+
+void Render_HUD() {
+    if (!bInitialized) {
+        return;
+    }
+
+    char Buffer[1024] = {0};
+
+    SDL_snprintf(Buffer, 1024, "%.3f", Time_GetFramesPerSecond());
+
+    Render_DrawText(Buffer);
+}
+
+void Render_Tick() {
+    if (!bInitialized) {
+        return;
+    }
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClearColor(COLOR_BYTE(10), COLOR_BYTE(9), COLOR_BYTE(80), COLOR_BYTE(255));
+
+    Render_Scene();
+    Render_HUD();
 
     SDL_GL_SwapWindow(pSDL_Window);
 }
